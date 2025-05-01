@@ -1,0 +1,72 @@
+# AI Image Generation Web App - Product Requirements Document (v1.0)
+
+<context>
+# Overview
+This web application allows users to generate and edit images using OpenAI's image models, specifically targeting the gpt-image-1 model. It aims to provide an intuitive interface for interacting with OpenAI's image generation and editing APIs, solving the problem of accessible AI image creation for users interested in experimenting with such technologies. The app features a modern, dark-themed interface inspired by Grok.com, targeting users who value both functionality and aesthetic appeal.
+
+# Core Features
+- **View Images Gallery**
+  - Displays previously generated or edited images along with their prompts.
+  - Important for users to browse and revisit past creations.
+  - Works by fetching metadata and image URLs from the backend API.
+- **Create New Images**
+  - Allows users to generate images via text prompts with configurable parameters (quality, size, format, etc.) for the gpt-image-1 model.
+  - Critical for enabling unique AI image creation.
+  - Users input parameters through a form, which are sent to OpenAI's API via the backend.
+- **Edit Existing Images**
+  - Enables users to upload images, provide edit prompts, and optionally use masks for targeted edits using gpt-image-1.
+  - Essential for iterative image refinement and creative combinations.
+  - Involves uploading files and parameters to the backend for processing by OpenAI's edit endpoint.
+
+# User Experience
+- **User Personas**: Tech-savvy individuals, artists, and hobbyists interested in AI-generated art, ranging from beginners to advanced users of AI tools.
+- **Key User Flows**:
+  - Landing on the app, navigating between View, Create, and Edit sections via tabs or sidebar.
+  - Viewing gallery, generating a new image with custom settings, and editing an uploaded image with a prompt.
+- **UI/UX Considerations**:
+  - Dark theme with black backgrounds (#000000), inspired by Grok.com, using fonts like Inter for a clean, modern look.
+  - Responsive grid for gallery, intuitive forms for input, and clear progress indicators during API calls.
+</context>
+
+<PRD>
+# Technical Architecture
+- **System Components**:
+  - Frontend: React.js with Vite or Create React App, styled with Tailwind CSS for a modern SPA experience.
+  - Backend: Python FastAPI framework for API handling and local image storage.
+  - API Integration: OpenAI Python library to interact with /v1/images/generations and /v1/images/edits endpoints.
+- **Data Models**:
+  - Image metadata including unique ID, prompt, generation parameters, filename, and timestamp, stored in SQLite or JSON manifest.
+- **APIs and Integrations**:
+  - Backend endpoints: /api/images (GET), /api/generate (POST), /api/edit (POST), /images/{image_id} (GET).
+  - Secure handling of OpenAI API key on the backend.
+- **Infrastructure Requirements**:
+  - Local server storage for images, minimal for v1.0 with no cloud dependency.
+
+# Development Roadmap
+- **MVP Requirements**:
+  - Core backend setup with FastAPI and OpenAI API integration for image generation and editing.
+  - Basic local storage for images and metadata.
+  - Frontend with three main sections: View Images (gallery grid), Create Image (form with gpt-image-1 parameters), Edit Image (upload and edit form).
+  - Dark theme UI inspired by Grok.com with responsive design for desktop.
+  - Progress bars and error handling for API interactions.
+- **Future Enhancements**:
+  - User authentication for private galleries.
+  - Cloud storage integration (AWS S3 or similar).
+  - In-app mask editor, model selection options, advanced gallery features (search, filter, delete).
+  - Mobile responsiveness and WebSocket for real-time updates.
+
+# Logical Dependency Chain
+- **Foundation**: Backend setup with FastAPI, OpenAI API integration, and local storage functionality as the base layer.
+- **Quick Usable Frontend**: Implement the View Images page first for a visible interface, followed by Create Image functionality to generate content.
+- **Feature Completion**: Add Edit Image capability as it builds on the existing image handling infrastructure.
+- **Atomic Scoping**: Ensure each feature (View, Create, Edit) is independently functional but integrates seamlessly for a cohesive user experience.
+
+# Risks and Mitigations
+- **Technical Challenges**: Potential issues with OpenAI API rate limits or response times; mitigate by implementing caching where possible and clear loading states.
+- **MVP Definition**: Risk of scope creep; focus strictly on core features (View, Create, Edit) for v1.0, deferring advanced features.
+- **Resource Constraints**: Limited storage on local server; plan for basic storage limits and monitor usage with an eye towards cloud solutions post-MVP.
+
+# Appendix
+- **Research Findings**: gpt-image-1 model specifics drawn from provided documentation, confirming parameter support.
+- **Technical Specifications**: Frontend to use React and Tailwind CSS, backend with FastAPI on Python 3.x, leveraging SQLite or JSON for metadata storage.
+</PRD> 

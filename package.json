@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@types/react-dropzone": "^4.2.2",
+    "axios-retry": "^4.5.0",
+    "react-dropzone": "^14.3.8"
+  }
+}
