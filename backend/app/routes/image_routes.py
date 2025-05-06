@@ -6,7 +6,11 @@ from pathlib import Path
 from fastapi.responses import FileResponse
 
 from ..models.image_metadata import ImageMetadata
-from ..services.image_service import get_all_image_metadata, SortOrder, get_image_filename_by_id
+from ..services.image_service import (
+    get_all_image_metadata,
+    SortOrder,
+    get_image_filename_by_id,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -23,8 +27,12 @@ async def get_images(
 ):
     """Retrieve a list of image metadata with pagination and sorting."""
     try:
-        logger.info(f"Fetching images with limit={limit}, offset={offset}, sort='{sort}'")
-        metadata_list = get_all_image_metadata(limit=limit, offset=offset, sort=sort)
+        logger.info(
+            f"Fetching images with limit={limit}, offset={offset}, sort='{sort}'"
+        )
+        metadata_list = await get_all_image_metadata(
+            limit=limit, offset=offset, sort=sort
+        )
         # The service function returns [] on error, which is acceptable here.
         # More specific error handling could be added if needed (e.g., raising 500)
         return metadata_list
@@ -79,7 +87,7 @@ async def get_image_file(image_id: str):
     """Retrieve a specific image file by its ID."""
     try:
         logger.info(f"Attempting to retrieve image file for ID: {image_id}")
-        filename = get_image_filename_by_id(image_id)
+        filename = await get_image_filename_by_id(image_id)
 
         if not filename:
             logger.warning(f"Image ID not found: {image_id}")

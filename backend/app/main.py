@@ -4,18 +4,17 @@ from .config import ALLOWED_ORIGINS, OPENAI_API_KEY
 from .routes import editing, gallery, image_routes
 from .routes.generation_routes import router as generation_router
 # Import storage service to trigger database initialization on startup
-from .services import storage_service
-from .services.image_service import initialize_database
-
-# Initialize Database on startup
-try:
-    initialize_database()
-except Exception as e:
-    # Log the error appropriately in a real app
-    print(f"ERROR: Failed to initialize database: {e}")
-    # Decide if the app should exit or continue without DB
+# Async DB ping helper uses the new image_service
+from .services import image_service
+# ---------------------------------------------------------------------------
+# Database initialisation moved to an async FastAPI startup hook so that it
+# runs inside the event-loop and uses the new aiosqlite implementation without
+# blocking.
+# ---------------------------------------------------------------------------
 
 # TODO: Remove this import once OpenAI client is used elsewhere
+# app will be defined below; we add the startup hook after its creation.
+
 # This is just to verify the key is loaded initially
 if OPENAI_API_KEY:
     print("OpenAI API Key loaded successfully.")
@@ -27,6 +26,25 @@ app = FastAPI(
     description="API for generating and editing images using OpenAI.",
     version="1.0.0"
 )
+
+# ---------------------------------------------------------------------------
+# Startup tasks
+# ---------------------------------------------------------------------------
+
+from .services.image_service import initialize_database
+
+
+@app.on_event("startup")
+async def _startup_db() -> None:
+    """Initialise the SQLite schema without blocking the event loop."""
+
+    try:
+        await initialize_database()
+    except Exception as e:
+        # Fail fast if we cannot prepare storage – otherwise requests will
+        # throw 500s later.
+        print(f"ERROR: Failed to initialize database: {e}")
+        raise
 
 # Configure CORS
 app.add_middleware(
@@ -47,8 +65,9 @@ async def health_check():
     # In the future, this could check database connections, API key validity, etc.
     # Simple DB check example (could be more robust)
     try:
-        conn = storage_service.get_db_connection() # Use storage_service temporarily
-        conn.close()
+        # Cheap async check: try to fetch a single row; this hits the DB via a
+        # background thread and returns quickly even if the table is empty.
+        await image_service.get_all_image_metadata(limit=1)
         db_status = "OK"
     except Exception as e:
         db_status = f"Error: {e}"
