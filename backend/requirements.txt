@@ -4,3 +4,5 @@ python-dotenv
 openai
 aiofiles
 python-multipart 
+pydantic-settings>=2.2
+python-json-logger>=2.0

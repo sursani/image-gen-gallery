@@ -15,9 +15,11 @@ from ..services.image_service import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Define path relative to this file's location (routes directory)
-# Go up three levels to the backend directory, then down to local_storage/images
-IMAGE_STORAGE_PATH = Path(__file__).resolve().parent.parent.parent / "local_storage" / "images"
+# Storage path based on settings
+from ..core.settings import settings
+
+# Use Path for join and ensure the directory exists.
+IMAGE_STORAGE_PATH = Path(settings.storage_dir) / "images"
 
 @router.get("/", response_model=List[ImageMetadata])
 async def get_images(

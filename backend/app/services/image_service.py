@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Literal
 
+from ..core.settings import settings
+
 from pydantic import ValidationError
 
 from ..models.image_metadata import ImageMetadata
@@ -25,8 +27,8 @@ from ..models.image_metadata import ImageMetadata
 
 # Compute the path relative to the *backend* directory regardless of the
 # current working directory.  The layout is `<repo_root>/backend/local_storage`.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # points to backend
-DATABASE_PATH = str(BASE_DIR / "local_storage" / "image_metadata.db")
+BASE_DIR = Path(settings.storage_dir).resolve()
+DATABASE_PATH = str(BASE_DIR / settings.db_filename)
 
 logger = logging.getLogger(__name__)
 

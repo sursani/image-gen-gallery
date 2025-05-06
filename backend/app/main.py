@@ -1,9 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .config import ALLOWED_ORIGINS, OPENAI_API_KEY
+
+# Initialise logging before any other project imports that might emit logs
+from .core.logging import init_logging
+from .core.settings import settings
+
+init_logging()
 from .routes import editing, gallery, image_routes
 from .routes.generation_routes import router as generation_router
-# Import storage service to trigger database initialization on startup
 # Async DB ping helper uses the new image_service
 from .services import image_service
 # ---------------------------------------------------------------------------
@@ -16,10 +20,11 @@ from .services import image_service
 # app will be defined below; we add the startup hook after its creation.
 
 # This is just to verify the key is loaded initially
-if OPENAI_API_KEY:
-    print("OpenAI API Key loaded successfully.")
-else:
-    print("OpenAI API Key not found. Please check your .env file.")
+# Informative message
+if settings.openai_api_key:
+    import logging
+
+    logging.getLogger(__name__).info("OpenAI API key loaded successfully.")
 
 app = FastAPI(
     title="AI Image Generation API",
@@ -49,7 +54,7 @@ async def _startup_db() -> None:
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], # Expand allowed methods if needed
     allow_headers=["*"], # Allow all headers

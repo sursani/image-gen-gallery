@@ -1,18 +1,23 @@
-import os
-from dotenv import load_dotenv
+"""BACKCOMPAT configuration module.
 
-load_dotenv()  # Load environment variables from .env file
+New code should *not* import from ``app.config`` but instead use
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    from backend.app.core.settings import settings
 
-if not OPENAI_API_KEY:
-    print("Warning: OPENAI_API_KEY environment variable not set.")
-    # You might want to raise an exception here in a real application
-    # raise ValueError("OPENAI_API_KEY environment variable not set.")
+This shim provides ``OPENAI_API_KEY`` and ``ALLOWED_ORIGINS`` so that
+existing modules continue to run.  A *DeprecationWarning* is emitted at
+import time.
+"""
 
-# You can add other configurations here, e.g., database URLs, CORS origins
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Assuming React frontend runs on port 3000
-    "http://localhost:5173", # Default Vite port
-    # Add other origins as needed (e.g., your deployed frontend URL)
-] 
+import warnings
+
+from .core.settings import settings
+
+warnings.warn(
+    "backend.app.config is deprecated; use backend.app.core.settings instead",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+OPENAI_API_KEY = settings.openai_api_key
+ALLOWED_ORIGINS = settings.allowed_origins

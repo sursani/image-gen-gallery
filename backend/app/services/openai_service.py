@@ -10,17 +10,22 @@ from datetime import datetime
 from typing import Optional, Tuple, List
 import os
 
-from ..config import OPENAI_API_KEY
+from ..core.settings import settings
 from ..models.image_metadata import ImageMetadata
 from .image_service import save_image_metadata  # Async version
 
 logger = logging.getLogger(__name__)
 
-IMAGE_STORAGE_PATH = "local_storage/images" 
+from pathlib import Path
+
+
+# Path to the directory where images will be stored (inside the storage
+# dir specified in Settings).
+IMAGE_STORAGE_PATH = Path(settings.storage_dir) / "images"
 
 # Configure OpenAI client
 # Consider using AsyncOpenAI for FastAPI
-client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+client = AsyncOpenAI(api_key=settings.openai_api_key)
 
 # Define retry strategy for transient OpenAI API errors
 retry_strategy = retry(
