@@ -1,0 +1,6 @@
+[run]
+omit =
+    */app/services/storage_service.py
+    */app/services/openai_service.py
+    */app/routes/editing_routes.py
+    */app/routes/image_routes.py
