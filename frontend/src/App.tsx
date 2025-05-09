@@ -25,41 +25,44 @@ function App() {
   }
 
   return (
-    // Apply dark theme globally using the 'dark' selector defined in tailwind.config.js
-    // Ensure your index.html or root component has the `dark` class or attribute
-    <div className="dark min-h-screen bg-black text-gray-200 font-sans">
-      <div className="container mx-auto p-4">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-center text-purple-400">AI Image Generation Gallery</h1>
-          {/* Basic Tab Navigation */}
-          <nav className="mt-4 flex justify-center space-x-4">
+    // Removed dark class from here, as Tailwind dark mode is configured via prefers-color-scheme or a manual toggle
+    // The global styles in index.css handle the dark and light themes.
+    <div className="min-h-screen text-gray-200 font-sans"> {/* Ensure bg is handled by body in index.css */}
+      {/* Apply the new .page-container class for consistent padding and max-width */}
+      <div className="page-container flex flex-col min-h-screen"> {/* Added flex flex-col to make footer stick to bottom if content is short */}
+        {/* Updated Header: Increased bottom margin, centered items, and added a subtle bottom border */}
+        <header className="mb-12 pb-6 border-b border-gray-700 dark:border-gray-600">
+          <h1 className="text-4xl font-bold text-center text-purple-500 dark:text-purple-400 mb-6">AI Image Generation Gallery</h1>
+          {/* Navigation: Added more spacing between buttons and centered them more effectively */}
+          <nav className="mt-6 flex justify-center items-center space-x-6">
             <Button
               onClick={() => setActiveView('gallery')}
-              variant={activeView === 'gallery' ? 'primary' : 'secondary'}
+              variant={activeView === 'gallery' ? 'primary' : 'outline'} /* Changed secondary to outline for better contrast */
             >
               View Gallery
             </Button>
             <Button
               onClick={() => setActiveView('create')}
-              variant={activeView === 'create' ? 'primary' : 'secondary'}
+              variant={activeView === 'create' ? 'primary' : 'outline'}
             >
               Create Image
             </Button>
             <Button
               onClick={() => setActiveView('edit')}
-              variant={activeView === 'edit' ? 'primary' : 'secondary'}
+              variant={activeView === 'edit' ? 'primary' : 'outline'}
             >
               Edit Image
             </Button>
           </nav>
         </header>
 
-        <main>
-          {/* Render the content based on the active view */}
+        {/* Main content area: Added flex-grow to push footer down */}
+        <main className="flex-grow">
           {renderView()}
         </main>
 
-        <footer className="mt-8 text-center text-gray-500 text-sm">
+        {/* Footer: Increased top margin and refined text style */}
+        <footer className="mt-16 pt-6 border-t border-gray-700 dark:border-gray-600 text-center text-gray-600 dark:text-gray-400 text-sm">
           Powered by FastAPI, React, Tailwind, and OpenAI
         </footer>
       </div>

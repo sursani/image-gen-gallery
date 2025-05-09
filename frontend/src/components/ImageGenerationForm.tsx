@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Button from './Button';
 import { generateImage } from '../api/imageGeneration';
 import ErrorMessage from './ErrorMessage';
+import LoadingSpinner from './LoadingSpinner';
 
 function ImageGenerationForm() {
   const [formState, setFormState] = useState({
@@ -23,15 +24,9 @@ function ImageGenerationForm() {
     const { name, value } = e.target;
     setFormState(prev => ({ ...prev, [name]: value }));
     
-    // Clear error when user starts typing
     if (name === 'prompt' && value.trim().length > 0) {
       setErrors(prev => ({ ...prev, prompt: '' }));
     }
-  };
-
-  const handleRadioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormState(prev => ({ ...prev, [name]: value }));
   };
 
   const validateForm = () => {
@@ -39,13 +34,13 @@ function ImageGenerationForm() {
     const newErrors = { prompt: '' };
 
     if (!formState.prompt.trim()) {
-      newErrors.prompt = 'Prompt is required';
+      newErrors.prompt = 'Prompt is required.';
       isValid = false;
     } else if (formState.prompt.length < 10) {
-      newErrors.prompt = 'Prompt must be at least 10 characters long';
+      newErrors.prompt = 'Prompt must be at least 10 characters long.';
       isValid = false;
     } else if (formState.prompt.length > 1000) {
-      newErrors.prompt = 'Prompt must not exceed 1000 characters';
+      newErrors.prompt = 'Prompt must not exceed 1000 characters for DALL-E 2 (or 4000 for DALL-E 3).';
       isValid = false;
     }
 
@@ -55,22 +50,18 @@ function ImageGenerationForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setApiError(null);  // Clear previous API error
-    setImageUrl(null); // Clear previous result
+    setApiError(null);
+    setImageUrl(null);
     if (validateForm()) {
       setIsLoading(true);
       try {
         const response = await generateImage({
           prompt: formState.prompt,
           size: formState.size,
-          quality: formState.quality
+          quality: formState.quality === 'high' ? 'hd' : 'standard',
         });
-        console.log('Image generated:', response);
-        // Construct image URL from filename: /api/images/file/{filename}
         setImageUrl(`/api/images/file/${response.filename}`);
       } catch (error: any) {
-        console.error('Failed to generate image:', error);
-        // Use the standardized error message from the interceptor
         setApiError(error.message || 'An unknown error occurred generating the image.'); 
       } finally {
         setIsLoading(false);
@@ -78,35 +69,42 @@ function ImageGenerationForm() {
     }
   };
 
+  const inputBaseClasses = "w-full p-3 rounded-lg border focus:ring-2 focus:outline-none transition-colors duration-150 ease-in-out";
+  const lightInputClasses = "bg-gray-50 border-gray-300 text-gray-800 placeholder-gray-400 focus:border-purple-500 focus:ring-purple-500";
+  const darkInputClasses = "dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:border-purple-400 dark:focus:ring-purple-400";
+  
+  const inputErrorClasses = "border-red-500 dark:border-red-400 focus:border-red-500 dark:focus:border-red-400 focus:ring-red-500 dark:focus:ring-red-400";
+  const inputNormalClasses = `${lightInputClasses} ${darkInputClasses}`;
+
   return (
-    <div className="w-full max-w-2xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-6 text-white">Generate New Image</h2>
+    <div className="w-full max-w-2xl mx-auto py-8 px-4 sm:px-6">
+      <h2 className="text-3xl font-semibold mb-6 text-center">Generate New Image</h2>
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="prompt" className="block text-sm font-medium text-gray-300 mb-2">
-            Prompt <span className="text-red-500">*</span>
+          <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Prompt <span className="text-red-500 dark:text-red-400">*</span>
           </label>
           <textarea
             id="prompt"
             name="prompt"
             value={formState.prompt}
             onChange={handleChange}
-            placeholder="Enter your image description here (e.g., 'A futuristic cityscape at sunset')"
-            className={`w-full h-24 p-3 bg-gray-800 text-white rounded-lg border ${errors.prompt ? 'border-red-500' : 'border-gray-600'} focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+            placeholder="e.g., A photo of a white fur monster standing in a purple room."
+            className={`${inputBaseClasses} ${errors.prompt ? inputErrorClasses : inputNormalClasses} h-28 resize-none`}
             aria-required="true"
             aria-invalid={!!errors.prompt}
             aria-describedby={errors.prompt ? 'prompt-error' : undefined}
             disabled={isLoading}
-          ></textarea>
+          />
           {errors.prompt && (
-            <p id="prompt-error" className="mt-1 text-sm text-red-500">{errors.prompt}</p>
+            <p id="prompt-error" className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.prompt}</p>
           )}
-          <p className="mt-1 text-xs text-gray-400">{formState.prompt.length}/1000 characters</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formState.prompt.length}/1000 characters</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
           <div>
-            <label htmlFor="quality" className="block text-sm font-medium text-gray-300 mb-2">
+            <label htmlFor="quality" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Quality
             </label>
             <select
@@ -114,40 +112,38 @@ function ImageGenerationForm() {
               name="quality"
               value={formState.quality}
               onChange={handleChange}
-              className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className={`${inputBaseClasses} ${inputNormalClasses}`}
               disabled={isLoading}
             >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="auto">Auto</option>
+              <option value="standard">Standard</option>
+              <option value="high">HD (High)</option>
             </select>
           </div>
 
           <div>
-            <label htmlFor="size" className="block text-sm font-medium text-gray-300 mb-2">
-              Size
+            <label htmlFor="size" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Size (DALL-E 3: 1024x1024, 1792x1024, 1024x1792. DALL-E 2: 256x256, 512x512, 1024x1024)
             </label>
             <select
               id="size"
               name="size"
               value={formState.size}
               onChange={handleChange}
-              className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className={`${inputBaseClasses} ${inputNormalClasses}`}
               disabled={isLoading}
             >
-              <option value="256x256">256x256</option>
-              <option value="512x512">512x512</option>
-              <option value="1024x1024">1024x1024</option>
+              <option value="1024x1024">1024x1024 (Square)</option>
+              <option value="1792x1024">1792x1024 (Landscape)</option>
+              <option value="1024x1792">1024x1792 (Portrait)</option>
             </select>
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Format
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Response Format
           </label>
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-6 mt-1">
             <div className="flex items-center">
               <input
                 type="radio"
@@ -155,12 +151,12 @@ function ImageGenerationForm() {
                 name="format"
                 value="url"
                 checked={formState.format === 'url'}
-                onChange={handleRadioChange}
-                className="text-blue-500 focus:ring-blue-500"
+                onChange={handleChange}
+                className="h-4 w-4 text-purple-600 dark:text-purple-400 focus:ring-purple-500 dark:focus:ring-purple-400 border-gray-300 dark:border-gray-600"
                 disabled={isLoading}
               />
-              <label htmlFor="url" className="ml-2 text-sm text-gray-300">
-                URL
+              <label htmlFor="url" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                Image URL
               </label>
             </div>
             <div className="flex items-center">
@@ -170,44 +166,47 @@ function ImageGenerationForm() {
                 name="format"
                 value="b64_json"
                 checked={formState.format === 'b64_json'}
-                onChange={handleRadioChange}
-                className="text-blue-500 focus:ring-blue-500"
+                onChange={handleChange}
+                className="h-4 w-4 text-purple-600 dark:text-purple-400 focus:ring-purple-500 dark:focus:ring-purple-400 border-gray-300 dark:border-gray-600"
                 disabled={isLoading}
               />
-              <label htmlFor="b64_json" className="ml-2 text-sm text-gray-300">
+              <label htmlFor="b64_json" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                 Base64 JSON
               </label>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-center pt-4">
-          <Button type="submit" className="w-full md:w-auto" disabled={isLoading}>
-            {isLoading ? 'Generating...' : 'Generate Image'}
+        <div className="pt-2">
+          <Button type="submit" variant="primary" className="w-full sm:w-auto sm:px-8" disabled={isLoading}>
+            {isLoading ? 'Generating Your Masterpiece...' : 'Generate Image'}
           </Button>
         </div>
 
         {isLoading && (
-          <div className="mt-4 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-blue-500"></div>
-            <p className="mt-2 text-sm text-gray-300">Processing your request, this may take a moment...</p>
+          <div className="mt-6 text-center">
+            <LoadingSpinner />
+            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">Creating your image, please wait a moment...</p>
           </div>
         )}
       </form>
 
-      {/* API Error Display - Use ErrorMessage component */}
-      <ErrorMessage message={apiError} title="Generation Failed" />
+      {apiError && (
+          <div className="mt-8">
+            <ErrorMessage message={apiError} title="Image Generation Failed" />
+          </div>
+      )}
 
-      {/* Generated Image Display */}
       {imageUrl && !isLoading && (
-        <div className="mt-8 border-t border-gray-700 pt-8">
-          <h3 className="text-xl font-semibold mb-4 text-white">Generated Image:</h3>
-          <img 
-            src={imageUrl} 
-            alt="Generated by AI" 
-            className="w-full rounded-lg shadow-lg border border-gray-700"
-          />
-          {/* Add download/save buttons later if needed for generation */}
+        <div className="mt-10 border-t border-gray-200 dark:border-gray-700 pt-8">
+          <h3 className="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-100">Your Generated Image:</h3>
+          <div className="bg-gray-100 dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+            <img 
+              src={imageUrl} 
+              alt="Generated by AI" 
+              className="w-full h-auto object-contain rounded-md shadow-inner"
+            />
+          </div>
         </div>
       )}
     </div>

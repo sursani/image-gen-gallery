@@ -11,8 +11,13 @@ function ErrorMessage({ message, title = 'Error' }: ErrorMessageProps) {
   }
 
   return (
-    <div className="mt-6 p-4 bg-red-900 border border-red-700 text-red-100 rounded-lg shadow-md" role="alert">
-      <p className="font-bold text-red-50 mb-1">{title}:</p>
+    <div 
+      className="mt-6 p-4 border rounded-lg shadow-md 
+                 bg-red-50 border-red-300 text-red-700 
+                 dark:bg-red-800 dark:bg-opacity-30 dark:border-red-600 dark:text-red-200"
+      role="alert"
+    >
+      <p className="font-bold mb-1 text-red-700 dark:text-red-100">{title}</p>
       <p className="text-sm">{message}</p>
     </div>
   );

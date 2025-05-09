@@ -4,6 +4,7 @@ import ImageEditForm from '../components/ImageEditForm';
 import { editImage } from '../api/imageEditing'; // Import the new API function
 import Button from '../components/Button'; // Import Button
 import ErrorMessage from '../components/ErrorMessage'; // Import the new component
+import LoadingSpinner from '../components/LoadingSpinner'; // Import themed spinner
 
 function EditImageView() {
   const [originalFile, setOriginalFile] = useState<File | null>(null);
@@ -129,85 +130,80 @@ function EditImageView() {
     alert('Image saved to gallery! (Placeholder)');
   };
 
+  const sectionHeadingClasses = "text-2xl font-semibold mb-6 text-gray-800 dark:text-gray-100";
+  const cardClasses = "p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg"; // Consistent card styling
+
   return (
-    <div className="container mx-auto p-4 md:p-8">
-      <h1 className="text-3xl font-bold mb-8 text-white text-center">Edit Image</h1>
+    <div className="py-6 space-y-10">
+      <h2 className={sectionHeadingClasses}>Edit Image</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-white">1. Upload Original Image</h2>
-          <ImageUploader 
-            key="original-uploader" // Add key to force re-render on change if needed
-            onImageUpload={handleOriginalImageUpload} 
-          />
-          {/* Hidden img tag to help get dimensions */}
-          {originalPreviewUrl && <img ref={originalImageRef} src={originalPreviewUrl} alt="" style={{ display: 'none' }} />}
-        </div>
-        
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-white">2. Upload Mask (Optional)</h2>
-          <ImageUploader 
-            key="mask-uploader"
-            onImageUpload={handleMaskImageUpload} 
-            // Ensure mask uploader is reset if original changes
-            // You might need to manage its internal state more directly or use the key prop effectively
-          />
-           {maskError && (
-            <div className="mt-3 p-3 bg-red-900 border border-red-700 text-red-100 rounded-lg text-sm">
-              <p>{maskError}</p>
-            </div>
-          )}
-          {/* Hidden img tag to help get dimensions */}
-          {maskPreviewUrl && <img ref={maskImageRef} src={maskPreviewUrl} alt="" style={{ display: 'none' }} />}
-           <p className="text-xs text-gray-400 mt-2">Upload a black and white image where white indicates areas to edit. Must match original image dimensions.</p>
+      <div className={`${cardClasses} space-y-8`}>
+        <h2 className={sectionHeadingClasses}>1. Upload Images</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-10">
+          <div>
+            <h3 className="text-lg font-medium mb-3 text-gray-700 dark:text-gray-300">Original Image <span className="text-red-500 dark:text-red-400">*</span></h3>
+            <ImageUploader 
+              key={`original-uploader-${originalFile?.name || 'empty'}`}
+              onImageUpload={handleOriginalImageUpload} 
+            />
+            {originalPreviewUrl && <img ref={originalImageRef} src={originalPreviewUrl} alt="" className="hidden" />}
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-medium mb-3 text-gray-700 dark:text-gray-300">Mask Image (Optional)</h3>
+            <ImageUploader 
+              key={`mask-uploader-${maskFile?.name || 'empty'}`}
+              onImageUpload={handleMaskImageUpload} 
+              disabled={!originalFile} // Disable if no original image
+            />
+            {maskError && (
+              <div className="mt-3 p-3 bg-red-50 dark:bg-red-800 dark:bg-opacity-30 border border-red-300 dark:border-red-600 text-red-700 dark:text-red-200 rounded-md text-sm">
+                {maskError}
+              </div>
+            )}
+            {maskPreviewUrl && <img ref={maskImageRef} src={maskPreviewUrl} alt="" className="hidden" />}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Upload a black and white PNG. White areas indicate parts to edit. Must match original dimensions.</p>
+          </div>
         </div>
       </div>
 
       {originalFile && originalPreviewUrl && (
-        <div className="mt-8 border-t border-gray-700 pt-8">
-           <h2 className="text-xl font-semibold mb-4 text-white">3. Apply Edits</h2>
+        <div className={`${cardClasses} space-y-6`}>
+           <h2 className={sectionHeadingClasses}>2. Describe Your Edit</h2>
            <ImageEditForm 
              uploadedFile={originalFile}
              previewUrl={originalPreviewUrl}
              onSubmit={handleEditSubmit}
              isLoading={isLoading}
-             // Pass mask info if needed by the form in the future
-             // maskPreviewUrl={maskPreviewUrl} 
            />
         </div>
       )}
 
-      {/* Loading indicator for edit process */}
       {isLoading && (
-          <div className="mt-6 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-blue-500"></div>
-            <p className="mt-2 text-sm text-gray-300">Editing in progress...</p>
+          <div className="mt-8 text-center">
+            <LoadingSpinner />
+            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">Applying edits, this may take a moment...</p>
           </div>
         )}
 
-      {/* Display Edit Error - Use ErrorMessage component */}
       {editError && !isLoading && (
-         <ErrorMessage message={editError} title="Edit Failed" />
-        /* <div className="mt-6 p-4 bg-red-900 border border-red-700 text-red-100 rounded-lg">
-          <p className="font-bold">Edit Failed:</p>
-          <p>{editError}</p>
-        </div> */
+        <div className="mt-8">
+          <ErrorMessage message={editError} title="Image Edit Failed" />
+        </div>
       )}
 
-      {/* Display Edit Result */}
       {editResultUrl && !isLoading && (
-        <div className="mt-8 border-t border-gray-700 pt-8">
-          <h2 className="text-xl font-semibold mb-4 text-white">Edit Result:</h2>
-          <div className="flex justify-center mb-4">
+        <div className={`${cardClasses} mt-10 text-center`}>
+          <h2 className={`${sectionHeadingClasses} mb-6`}>3. Your Edited Image</h2>
+          <div className="mb-6 bg-gray-100 dark:bg-gray-900 p-2 rounded-lg shadow-inner inline-block">
             <img 
               src={editResultUrl} 
               alt="Edited result" 
-              className="w-full max-w-xl mx-auto rounded-lg shadow-lg border border-gray-700"
+              className="max-w-full h-auto md:max-h-[512px] rounded-md border border-gray-300 dark:border-gray-700"
             />
           </div>
-          {/* Action Buttons */}
-          <div className="flex justify-center space-x-4 mt-4">
-            <Button onClick={handleDownload} variant="secondary">
+          <div className="flex justify-center space-x-4">
+            <Button onClick={handleDownload} variant="outline">
               Download Image
             </Button>
             <Button onClick={handleSaveToGallery} variant="primary"> 

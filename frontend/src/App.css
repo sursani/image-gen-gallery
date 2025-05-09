@@ -1,21 +1,33 @@
+/* 
+  Styles for #root, .logo, and .card might need review or removal.
+  The .page-container class in index.css now handles max-width and padding for the main content area.
+  Global typography and centering are also handled by index.css and Tailwind utilities in App.tsx.
+*/
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  /* max-width: 1280px; /* Handled by .page-container in index.css */
+  /* margin: 0 auto; /* Handled by .page-container in index.css */
+  /* padding: 2rem; /* Handled by .page-container in index.css */
+  /* text-align: center; /* Generally handled by specific components or Tailwind utilities */
+  /* Minimal styles should remain here, if any, that are specific to the absolute root element if needed. */
+  /* For now, we can comment out or remove most of these as they are superseded. */
 }
 
 .logo {
-  height: 6em;
+  height: 6em; /* This can be kept if specific logo sizing is needed */
   padding: 1.5em;
   will-change: filter;
   transition: filter 300ms;
+  /* Consider if these drop-shadows fit the new aesthetic or if they should be updated/removed. */
+  /* For a more elegant look, subtle interactions are often preferred. */
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 1.5em #7e8cffaa); /* Updated color to match new link color, reduced spread */
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  /* This specific hover effect might be too brand-specific if you want a generic elegant UI */
+  /* Consider a consistent hover effect for all logos or elements. */
+  filter: drop-shadow(0 0 1.5em #61dafbaa);
 }
 
 @keyframes logo-spin {
@@ -29,14 +41,43 @@
 
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+    /* This animation might feel out of place in a more elegant UI unless it's a key branding element. */
+    /* animation: logo-spin infinite 20s linear; */ /* Commented out for now */
   }
 }
 
 .card {
-  padding: 2em;
+  /* padding: 2em; */ /* Spacing for cards should ideally be handled by Tailwind on the component itself or a wrapper. */
+  /* Consider defining card styles more directly where the card component is used or in a dedicated Card.css if it's complex. */
+  /* For now, removing padding from here to avoid conflicts. */
+  background-color: var(--card-bg, #2c3038); /* Example: use CSS variables for theming */
+  border-radius: 8px; /* Consistent with button radius */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Softer shadow */
+  /* Add transition for hover effects if any */
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
 }
 
 .read-the-docs {
-  color: #888;
+  /* color: #888; */ /* This color is quite dim. Replaced with a more readable one from the new palette. */
+  color: var(--text-muted, #a0aec0); /* Using a CSS variable for potential theming */
+  font-size: 0.9em;
+}
+
+/* Light theme adjustments for card and read-the-docs if needed */
+@media (prefers-color-scheme: light) {
+  .card {
+    background-color: var(--card-bg-light, #ffffff);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  .card:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  }
+  .read-the-docs {
+    color: var(--text-muted-light, #718096);
+  }
 }
