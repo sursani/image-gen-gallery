@@ -27,4 +27,20 @@ node_modules/
 
 # Task files
 tasks.json
-tasks/ 
+tasks/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+.pytest_cache/ 
