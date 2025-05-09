@@ -64,8 +64,7 @@ async def generate_image_from_prompt(
             prompt=prompt,
             size=size,
             quality=quality,
-            n=n, # Generate specified number of images
-            output_format="png"  # Default format for gpt-image-1
+            n=n # Generate specified number of images
         )
         
         # Extract base64 data from response
@@ -130,8 +129,7 @@ async def edit_image_from_prompt(
             "prompt": prompt,
             "size": size,
             "quality": quality,
-            "n": n,
-            "output_format": "png"
+            "n": n
         }
         if mask_bytes:
             mask_param = ("mask.png", mask_bytes, "image/png")

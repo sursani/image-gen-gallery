@@ -7,7 +7,7 @@ import LoadingSpinner from './LoadingSpinner';
 function ImageGenerationForm() {
   const [formState, setFormState] = useState({
     prompt: '',
-    quality: 'high',
+    quality: 'auto',
     size: '1024x1024',
     format: 'url'
   });
@@ -58,7 +58,7 @@ function ImageGenerationForm() {
         const response = await generateImage({
           prompt: formState.prompt,
           size: formState.size,
-          quality: formState.quality === 'high' ? 'hd' : 'standard',
+          quality: formState.quality,
         });
         setImageUrl(`/api/images/file/${response.filename}`);
       } catch (error: any) {
@@ -115,8 +115,10 @@ function ImageGenerationForm() {
               className={`${inputBaseClasses} ${inputNormalClasses}`}
               disabled={isLoading}
             >
-              <option value="standard">Standard</option>
-              <option value="high">HD (High)</option>
+              <option value="auto">Auto</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
             </select>
           </div>
 
