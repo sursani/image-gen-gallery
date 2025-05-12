@@ -77,11 +77,11 @@ function ImageGenerationForm() {
   const inputNormalClasses = `${lightInputClasses} ${darkInputClasses}`;
 
   return (
-    <div className="w-full max-w-2xl mx-auto py-8 px-4 sm:px-6">
-      <h2 className="text-3xl font-semibold mb-6 text-center">Generate New Image</h2>
-      <form className="space-y-6" onSubmit={handleSubmit}>
+    <div className="w-full max-w-2xl mx-auto py-10 px-4 sm:px-6">
+      <h2 className="text-3xl font-semibold mb-8 text-center">Generate New Image</h2>
+      <form className="space-y-8" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Prompt <span className="text-red-500 dark:text-red-400">*</span>
           </label>
           <textarea
@@ -99,12 +99,12 @@ function ImageGenerationForm() {
           {errors.prompt && (
             <p id="prompt-error" className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.prompt}</p>
           )}
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{formState.prompt.length}/1000 characters</p>
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-right">{formState.prompt.length}/1000 characters</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
           <div>
-            <label htmlFor="quality" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="quality" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Quality
             </label>
             <select
@@ -123,8 +123,8 @@ function ImageGenerationForm() {
           </div>
 
           <div>
-            <label htmlFor="size" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Size (DALL-E 3: 1024x1024, 1792x1024, 1024x1792. DALL-E 2: 256x256, 512x512, 1024x1024)
+            <label htmlFor="size" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Image Size
             </label>
             <select
               id="size"
@@ -135,8 +135,8 @@ function ImageGenerationForm() {
               disabled={isLoading}
             >
               <option value="1024x1024">1024x1024 (Square)</option>
-              <option value="1792x1024">1792x1024 (Landscape)</option>
-              <option value="1024x1792">1024x1792 (Portrait)</option>
+              <option value="1536x1024">1536x1024 (Landscape)</option>
+              <option value="1024x1536">1024x1536 (Portrait)</option>
             </select>
           </div>
         </div>
@@ -145,7 +145,7 @@ function ImageGenerationForm() {
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Response Format
           </label>
-          <div className="flex items-center space-x-6 mt-1">
+          <div className="flex items-center space-x-6 mt-2">
             <div className="flex items-center">
               <input
                 type="radio"
@@ -179,8 +179,8 @@ function ImageGenerationForm() {
           </div>
         </div>
 
-        <div className="pt-2">
-          <Button type="submit" variant="primary" className="w-full sm:w-auto sm:px-8" disabled={isLoading}>
+        <div className="pt-4">
+          <Button type="submit" variant="primary" className="w-full sm:w-auto sm:px-8 py-3 text-base" disabled={isLoading}>
             {isLoading ? 'Generating Your Masterpiece...' : 'Generate Image'}
           </Button>
         </div>
