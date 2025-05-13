@@ -20,6 +20,11 @@ def event_loop():
 async def tmp_storage_dir(tmp_path, monkeypatch):
     """Redirect Settings.storage_dir to a unique temporary directory."""
 
+    # 0. Inject a dummy API key so Settings() validation passes without requiring
+    # a real secret in the test environment. This **must** happen before the
+    # first import of `backend.app.core.settings`.
+    monkeypatch.setenv("OPENAI_API_KEY", "test-api-key")
+
     from backend.app.core.settings import settings
 
     # 1. Point settings to the temp directory
