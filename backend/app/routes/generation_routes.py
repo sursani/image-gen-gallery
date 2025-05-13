@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Body
 from typing import Optional
 import logging
 
-from ..services.openai_service import generate_image_from_prompt, save_image_from_base64
+from ..services import openai_service
 from ..models.image_metadata import ImageMetadata
 from ..schemas import GenerateImageRequest
 
@@ -16,7 +16,7 @@ async def handle_generate_image(request: GenerateImageRequest = Body(...)):
     
     try:
         # 1. Generate image using OpenAI service
-        image_data_list, revised_prompt = await generate_image_from_prompt(
+        image_data_list, revised_prompt = await openai_service.generate_image_from_prompt(
             prompt=request.prompt,
             size=request.size,
             quality=request.quality,
@@ -35,7 +35,7 @@ async def handle_generate_image(request: GenerateImageRequest = Body(...)):
             "quality": request.quality,
             "n": request.n
         }
-        saved_metadata_list = await save_image_from_base64(
+        saved_metadata_list = await openai_service.save_image_from_base64(
             image_data_list=image_data_list,
             prompt=request.prompt,
             revised_prompt=revised_prompt,
