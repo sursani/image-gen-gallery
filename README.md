@@ -120,13 +120,55 @@ LOG_FORMAT=plain
 ---
 
 ## Testing
-- **Backend:**
-    ```bash
-    cd backend
-    pytest --cov=app --cov-report=term-missing
-    ```
-- **Frontend:**
-    - Add tests as needed (e.g., with Jest, React Testing Library)
+
+### Backend – Pytest suite (🧪 new!)
+
+Recent work added a comprehensive asynchronous test-suite for the FastAPI
+backend.  The tests live in [`backend/tests`](backend/tests) and exercise both
+happy-paths and error-paths across all public endpoints as well as the
+OpenAI-integration helper functions.
+
+**What’s covered**
+
+* `test_health.py` – application & database health-check
+* `test_generate_route.py` / `test_generate_route_invalid_params.py` – image
+  generation endpoint (valid requests **and** 422 validation errors)
+* `test_edit_route.py` – placeholder image-editing endpoint
+* `test_images_route.py` – gallery listing with/without existing data
+* `test_error_paths.py` – assorted negative-path scenarios (missing fields,
+  internal exceptions)
+* `test_openai_service.py` – unit tests for the `openai_service` helpers
+* `test_config.py` – legacy `config.py` forward-compat shim
+
+**No external dependencies**
+
+The suite **does not talk to the real OpenAI service** – all network calls are
+patched/mocked, and a dummy `OPENAI_API_KEY` is injected automatically via the
+test fixtures.  You can therefore run the tests completely offline.
+
+**Running the backend tests**
+
+```bash
+# from the repo root
+cd backend
+
+# (optional) create & activate a virtual-env first
+pip install -r requirements-dev.txt
+
+# quick run
+pytest -q
+
+# run with coverage
+pytest --cov=app --cov-report=term-missing
+
+# run an individual test
+pytest tests/test_generate_route.py::test_generate_image_ok
+```
+
+### Frontend
+
+At the moment the React frontend has no automated test-suite.  Pull requests
+adding Jest/React-Testing-Library tests are very welcome!
 
 ---
 
@@ -157,4 +199,4 @@ image-gen-gallery/
 ---
 
 ## License
-MIT (or specify your license here) 
+MIT 
