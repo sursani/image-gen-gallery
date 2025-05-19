@@ -16,27 +16,41 @@ ALLOWED_IMAGE_TYPES = ["image/png"]
 MAX_FILE_SIZE = 4 * 1024 * 1024 
 
 async def validate_image_file(image: UploadFile) -> bytes:
-    """Validate the image file and return image bytes if valid."""
+    """Validate the image file and return its bytes if valid."""
     if image.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=400, detail=f"Invalid image file type: {image.content_type}. Must be PNG.")
-    if image.size > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail=f"Image file size exceeds limit ({MAX_FILE_SIZE} bytes).")
-    
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image file type: {image.content_type}. Must be PNG.",
+        )
+
     image_bytes = await image.read()
+    if len(image_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Image file size exceeds limit ({MAX_FILE_SIZE} bytes).",
+        )
+
     logger.info(f"Image received, size: {len(image_bytes)} bytes")
     return image_bytes
 
 async def validate_mask_file(mask: Optional[UploadFile] = None) -> Optional[bytes]:
-    """Validate the optional mask file and return mask bytes if valid."""
+    """Validate the optional mask file and return its bytes if valid."""
     if not mask:
         return None
-        
+
     if mask.content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(status_code=400, detail=f"Invalid mask file type: {mask.content_type}. Must be PNG.")
-    if mask.size > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail=f"Mask file size exceeds limit ({MAX_FILE_SIZE} bytes).")
-    
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid mask file type: {mask.content_type}. Must be PNG.",
+        )
+
     mask_bytes = await mask.read()
+    if len(mask_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mask file size exceeds limit ({MAX_FILE_SIZE} bytes).",
+        )
+
     logger.info(f"Mask provided, size: {len(mask_bytes)} bytes")
     return mask_bytes
 
