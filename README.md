@@ -177,7 +177,7 @@ adding Jest/React-Testing-Library tests are very welcome!
 image-gen-gallery/
 ├── backend/
 │   ├── app/           # FastAPI app code
-│   ├── local_storage/ # Image files and SQLite DB
+│   ├── local_storage/ # Created automatically at runtime for image files and SQLite DB
 │   ├── tests/         # Pytest tests
 │   └── requirements.txt
 ├── frontend/
