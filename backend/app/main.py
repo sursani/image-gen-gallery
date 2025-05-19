@@ -11,7 +11,7 @@ from .routes.generation_routes import router as generation_router
 # Async DB ping helper uses the new image_service
 from .services import image_service
 # ---------------------------------------------------------------------------
-# Database initialisation moved to an async FastAPI startup hook so that it
+# Database initialization moved to an async FastAPI startup hook so that it
 # runs inside the event-loop and uses the new aiosqlite implementation without
 # blocking.
 # ---------------------------------------------------------------------------
