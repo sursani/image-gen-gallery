@@ -49,6 +49,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 pip install -r requirements-dev.txt  # for development/testing
 ```
+Run the final `pip install -r requirements-dev.txt` step while your environment
+still has network access (for example in a prebuild or custom container). This
+ensures `pytest` and the rest of the test tooling are available even when the
+workspace later runs offline.
 
 ### Run the backend server
 ```bash
@@ -154,6 +158,7 @@ cd backend
 
 # (optional) create & activate a virtual-env first
 pip install -r requirements-dev.txt
+# (needs network access, so run this during the online setup phase)
 
 # quick run
 pytest -q
@@ -167,7 +172,7 @@ pytest tests/test_generate_route.py::test_generate_image_ok
 
 ### Frontend
 
-At the moment the React frontend has no automated test-suite.  Pull requests
+The React frontend currently has **no** automated test suite. Pull requests
 adding Jest/React-Testing-Library tests are very welcome!
 
 ---
