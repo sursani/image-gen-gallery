@@ -1,5 +1,10 @@
 import importlib
+import os
 import pytest
+
+# Ensure settings can be imported even if OPENAI_API_KEY isn't defined by
+# setting a temporary default. The value will be overwritten by tests.
+os.environ.setdefault("OPENAI_API_KEY", "test-api-key")
 from backend.app.core.settings import settings
 
 

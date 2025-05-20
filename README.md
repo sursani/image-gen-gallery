@@ -105,6 +105,9 @@ LOG_FORMAT=plain
 - Use Node.js 18+ for the frontend
 - Recommended: run backend and frontend in separate terminals for development
 - Backend hot-reloads with `--reload`; frontend with Vite HMR
+- **First time setup:** run `./scripts/setup_env.sh` while your workspace still
+  has network access. This installs the Python packages required for the pytest
+  suite as well as the frontend dependencies so tests can run offline later.
 
 ---
 
@@ -158,7 +161,8 @@ cd backend
 
 # (optional) create & activate a virtual-env first
 pip install -r requirements-dev.txt
-# (needs network access, so run this during the online setup phase)
+# (needs network access, so run this during the online setup phase or via
+# `./scripts/setup_env.sh`)
 
 # quick run
 pytest -q
