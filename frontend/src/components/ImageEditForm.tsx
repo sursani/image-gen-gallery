@@ -63,14 +63,14 @@ function ImageEditForm({ uploadedFile, previewUrl, onSubmit, isLoading }: ImageE
     <div className="w-full">
       {/* The h3 for "Edit Image" might be redundant if the parent section already has a title like "2. Describe Your Edit" */}
       {/* <h3 className="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-100">Describe the Edit</h3> */}
-      
+
       <div className="flex flex-col lg:flex-row gap-x-8 gap-y-6 items-start">
         <div className="w-full lg:w-2/5 flex-shrink-0">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Original Image:</p>
           <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden shadow-md">
-            <img 
-              src={previewUrl} 
-              alt="Uploaded preview for editing" 
+            <img
+              src={previewUrl}
+              alt="Uploaded preview for editing"
               className="w-full h-full object-contain border border-gray-200 dark:border-gray-600"
             />
           </div>
@@ -113,4 +113,4 @@ function ImageEditForm({ uploadedFile, previewUrl, onSubmit, isLoading }: ImageE
   );
 }
 
-export default ImageEditForm; 
+export default ImageEditForm;

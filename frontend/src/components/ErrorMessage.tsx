@@ -11,9 +11,9 @@ function ErrorMessage({ message, title = 'Error' }: ErrorMessageProps) {
   }
 
   return (
-    <div 
-      className="mt-6 p-4 border rounded-lg shadow-md 
-                 bg-red-50 border-red-300 text-red-700 
+    <div
+      className="mt-6 p-4 border rounded-lg shadow-md
+                 bg-red-50 border-red-300 text-red-700
                  dark:bg-red-800 dark:bg-opacity-30 dark:border-red-600 dark:text-red-200"
       role="alert"
     >
@@ -23,4 +23,4 @@ function ErrorMessage({ message, title = 'Error' }: ErrorMessageProps) {
   );
 }
 
-export default ErrorMessage; 
+export default ErrorMessage;
