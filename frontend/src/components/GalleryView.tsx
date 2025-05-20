@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { fetchImageMetadata, ImageMetadata } from '../api/client';
 import ImageCard from './ImageCard';
 import LoadingSpinner from './LoadingSpinner';
-import Button from './Button'; // Import the updated Button component
+import Button from './Button';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -12,12 +12,11 @@ const GalleryView: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState<number>(0);
     const [hasMore, setHasMore] = useState<boolean>(true);
-    const [totalFetched, setTotalFetched] = useState<number>(0); // Kept for potential future use, not directly used in this refactor
+    const [totalFetched, setTotalFetched] = useState<number>(0);
 
     const loadImages = useCallback(async (page: number) => {
         setIsLoading(true);
         setError(null);
-        // console.log(`Loading page: ${page}`); // Keep for debugging if needed
 
         try {
             const offset = page * ITEMS_PER_PAGE;
@@ -53,50 +52,42 @@ const GalleryView: React.FC = () => {
     };
 
     return (
-        // Removed container, mx-auto, px-4, py-8 as these are handled by .page-container in App.tsx
-        // Added some vertical padding for content separation within the main view
-        <div className="py-6">
-            {/* Removed redundant h1 "Image Gallery" */}
-
+        <div className="py-lg">
             {error && (
-                // Updated error message styling for better visual consistency
-                <div className="mb-6 p-4 text-center text-red-300 bg-red-800 bg-opacity-30 border border-red-700 rounded-md shadow-md">
-                    <p className="font-semibold">Oops! Something went wrong while fetching images.</p>
-                    <p className="text-sm mt-1">{error}</p>
+                <div className="mb-lg p-md text-center bg-dark-elevated border border-red-800 rounded-ui-md">
+                    <p className="font-semibold text-red-400">Something went wrong while fetching images</p>
+                    <p className="text-sm mt-2 text-dark-text-muted">{error}</p>
                 </div>
             )}
 
             {images.length === 0 && !isLoading && !error && (
-                 // Enhanced styling for "No images found" message
-                 <div className="text-center py-10">
-                    <svg className="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <div className="text-center py-xl">
+                    <svg className="mx-auto h-16 w-16 text-dark-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <h3 className="mt-2 text-lg font-medium text-gray-400">No Images Yet</h3>
-                    <p className="mt-1 text-sm text-gray-500">It looks like there are no images in the gallery. Try creating some!</p>
-                 </div>
+                    <h3 className="mt-md text-lg font-medium text-dark-text-secondary">No Images Yet</h3>
+                    <p className="mt-xs text-sm text-dark-text-muted">It looks like there are no images in the gallery. Try creating some!</p>
+                </div>
             )}
 
-            {/* Adjusted gap for the grid, mb-8 for spacing below grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-8 mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-md gap-y-lg mb-xl">
                 {images.map(metadata => (
                     <ImageCard key={metadata.id} metadata={metadata} />
                 ))}
             </div>
 
             {isLoading && (
-                 <div className="text-center py-6">
-                      <LoadingSpinner />
-                      <p className="mt-2 text-sm text-gray-400">Loading images...</p>
-                 </div>
+                <div className="text-center py-lg">
+                    <LoadingSpinner size="md" />
+                    <p className="mt-sm text-sm text-dark-text-muted">Loading images...</p>
+                </div>
             )}
 
             {!isLoading && hasMore && (
-                // Using the Button component for "Load More"
-                <div className="text-center mt-8 mb-4">
+                <div className="text-center mt-lg mb-md">
                     <Button
                         onClick={handleLoadMore}
-                        variant="primary" // Using primary variant for emphasis
+                        variant="primary"
                         disabled={isLoading}
                     >
                         Load More Images
@@ -105,7 +96,7 @@ const GalleryView: React.FC = () => {
             )}
 
             {!isLoading && !hasMore && images.length > 0 && (
-                 <p className="text-center text-sm text-gray-500 py-10">You've reached the end of the gallery.</p>
+                <p className="text-center text-sm text-dark-text-muted py-lg">You've reached the end of the gallery.</p>
             )}
         </div>
     );

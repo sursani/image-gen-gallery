@@ -1,111 +1,97 @@
+@import './theme.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.6;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.9);
-  background-color: #1a1d24;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
-}
-
-a {
-  font-weight: 500;
-  color: #7e8cff;
-  text-decoration: inherit;
-  transition: color 0.2s ease-in-out;
-}
-a:hover {
-  color: #98a3ff;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-  background: linear-gradient(to bottom, #1a1d24, #121418);
-}
-
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-h1 {
-  font-size: 2.8em;
-  line-height: 1.1;
-}
-
-button, input[type="button"], input[type="submit"] {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.75em 1.5em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #313a4a;
-  color: rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-  transition: border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
-}
-button:hover, input[type="button"]:hover, input[type="submit"]:hover {
-  border-color: #7e8cff;
-  background-color: #3b4454;
-}
-button:focus,
-button:focus-visible,
-input[type="button"]:focus,
-input[type="button"]:focus-visible,
-input[type="submit"]:focus,
-input[type="submit"]:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-  outline-color: #7e8cff;
-}
-
-@media (prefers-color-scheme: light) {
+@layer base {
+  /* Direct styling without variables for maximum compatibility */
   :root {
-    color: #2c3e50;
-    background-color: #f4f6f8;
-    background: linear-gradient(to bottom, #ffffff, #eef1f5);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    line-height: 1.6;
+    font-weight: 400;
+    color-scheme: dark;
+    color: #DDDDDD;
+    background-color: #121212;
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 320px;
+    min-height: 100vh;
+    background: #121212;
+    color: #DDDDDD;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    color: #1f2937;
+    font-weight: 600;
+    color: #FFFFFF;
+  }
+
+  h1 {
+    font-size: 2.8em;
+    line-height: 1.1;
   }
 
   a {
-    color: #5667ff;
+    font-weight: 500;
+    color: #3366FF;
+    text-decoration: inherit;
+    transition: color 0.2s ease-in-out;
   }
+  
   a:hover {
-    color: #4353d9;
+    opacity: 0.8;
   }
+
   button, input[type="button"], input[type="submit"] {
-    background-color: #e1e5ea;
-    color: #2c3e50;
+    border-radius: 999px;
+    border: 1px solid #333333;
+    padding: 0.75em 1.5em;
+    font-size: 1em;
+    font-weight: 500;
+    font-family: inherit;
+    background-color: #252525;
+    color: #DDDDDD;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
   }
+  
   button:hover, input[type="button"]:hover, input[type="submit"]:hover {
-    border-color: #5667ff;
-    background-color: #d1d5db;
+    background-color: #333333;
   }
-   button:focus,
-   button:focus-visible,
-   input[type="button"]:focus,
-   input[type="button"]:focus-visible,
-   input[type="submit"]:focus,
-   input[type="submit"]:focus-visible {
-    outline-color: #5667ff;
+  
+  button:focus,
+  button:focus-visible,
+  input[type="button"]:focus,
+  input[type="button"]:focus-visible,
+  input[type="submit"]:focus,
+  input[type="submit"]:focus-visible {
+    outline: 2px solid #3366FF;
+    outline-offset: 2px;
+  }
+
+  input, textarea, select {
+    background-color: #1E1E1E;
+    border: 1px solid #333333;
+    border-radius: 12px;
+    padding: 0.75em 1em;
+    color: #DDDDDD;
+    transition: all 0.2s ease-in-out;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: #3366FF;
+    box-shadow: 0 0 0 1px #3366FF;
   }
 }
 
@@ -113,17 +99,26 @@ input[type="submit"]:focus-visible {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 32px;
 }
+
+/* Direct class overrides for Tailwind classes that might be causing issues */
+.bg-dark-bg { background-color: #121212 !important; }
+.bg-dark-surface { background-color: #1E1E1E !important; }
+.bg-dark-elevated, .bg-dark-surface-elevated { background-color: #252525 !important; }
+.text-dark-text-primary { color: #FFFFFF !important; }
+.text-dark-text-secondary { color: #DDDDDD !important; }
+.text-dark-text-muted { color: #999999 !important; }
+.border-dark-border { border-color: #333333 !important; }
+.rounded-ui-pill { border-radius: 999px !important; }
+.rounded-ui-md { border-radius: 12px !important; }
 
 @media (max-width: 768px) {
   h1 {
     font-size: 2.2em;
   }
-  :root {
-    padding: 1rem;
-  }
+  
   .page-container {
-    padding: 1rem;
+    padding: 12px;
   }
 }

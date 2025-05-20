@@ -1,11 +1,20 @@
 import React from 'react';
 
-const LoadingSpinner: React.FC = () => {
+interface LoadingSpinnerProps {
+  size?: 'sm' | 'md' | 'lg';
+}
+
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md' }) => {
+  const sizeClasses = {
+    sm: 'h-6 w-6',
+    md: 'h-10 w-10',
+    lg: 'h-16 w-16'
+  };
+
   return (
     <div className="flex justify-center items-center">
-      {/* Updated spinner to use theme-consistent colors */}
       <div
-        className="animate-spin rounded-full h-10 w-10 border-b-2 border-t-2 border-purple-500 dark:border-purple-400"
+        className={`ui-spinner ${sizeClasses[size]}`}
         role="status"
         aria-live="polite"
       >
