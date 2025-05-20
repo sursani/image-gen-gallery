@@ -5,6 +5,7 @@ import { editImage } from '../api/imageEditing'; // Import the new API function
 import Button from '../components/Button'; // Import Button
 import ErrorMessage from '../components/ErrorMessage'; // Import the new component
 import LoadingSpinner from '../components/LoadingSpinner'; // Import themed spinner
+import Card from '../components/Card';
 
 function EditImageView() {
   const [originalFile, setOriginalFile] = useState<File | null>(null);
@@ -131,13 +132,12 @@ function EditImageView() {
   };
 
   const sectionHeadingClasses = "text-2xl font-semibold mb-6 text-gray-800 dark:text-gray-100";
-  const cardClasses = "p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg"; // Consistent card styling
 
   return (
     <div className="py-6 space-y-10">
       <h2 className={sectionHeadingClasses}>Edit Image</h2>
       
-      <div className={`${cardClasses} space-y-8`}>
+      <Card className="space-y-8">
         <h2 className={sectionHeadingClasses}>1. Upload Images</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-10">
           <div>
@@ -165,18 +165,18 @@ function EditImageView() {
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Upload a black and white PNG. White areas indicate parts to edit. Must match original dimensions.</p>
           </div>
         </div>
-      </div>
+      </Card>
 
       {originalFile && originalPreviewUrl && (
-        <div className={`${cardClasses} space-y-6`}>
+        <Card className="space-y-6">
            <h2 className={sectionHeadingClasses}>2. Describe Your Edit</h2>
-           <ImageEditForm 
+           <ImageEditForm
              uploadedFile={originalFile}
              previewUrl={originalPreviewUrl}
              onSubmit={handleEditSubmit}
              isLoading={isLoading}
            />
-        </div>
+        </Card>
       )}
 
       {isLoading && (
@@ -193,12 +193,12 @@ function EditImageView() {
       )}
 
       {editResultUrl && !isLoading && (
-        <div className={`${cardClasses} mt-10 text-center`}>
+        <Card className="mt-10 text-center">
           <h2 className={`${sectionHeadingClasses} mb-6`}>3. Your Edited Image</h2>
           <div className="mb-6 bg-gray-100 dark:bg-gray-900 p-2 rounded-lg shadow-inner inline-block">
-            <img 
-              src={editResultUrl} 
-              alt="Edited result" 
+            <img
+              src={editResultUrl}
+              alt="Edited result"
               className="max-w-full h-auto md:max-h-[512px] rounded-md border border-gray-300 dark:border-gray-700"
             />
           </div>
@@ -206,11 +206,11 @@ function EditImageView() {
             <Button onClick={handleDownload} variant="outline">
               Download Image
             </Button>
-            <Button onClick={handleSaveToGallery} variant="primary"> 
+            <Button onClick={handleSaveToGallery} variant="primary">
               Save to Gallery
             </Button>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

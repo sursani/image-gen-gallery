@@ -45,4 +45,4 @@ const ImageCard: React.FC<ImageCardProps> = ({ metadata }) => {
     );
 };
 
-export default ImageCard; 
+export default ImageCard;

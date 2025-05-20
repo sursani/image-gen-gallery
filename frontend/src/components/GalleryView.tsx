@@ -21,16 +21,16 @@ const GalleryView: React.FC = () => {
 
         try {
             const offset = page * ITEMS_PER_PAGE;
-            const fetchedImages = await fetchImageMetadata({ 
-                limit: ITEMS_PER_PAGE, 
-                offset: offset, 
-                sort: 'newest' 
+            const fetchedImages = await fetchImageMetadata({
+                limit: ITEMS_PER_PAGE,
+                offset: offset,
+                sort: 'newest'
             });
-            
+
             setImages(prevImages => page === 0 ? fetchedImages : [...prevImages, ...fetchedImages]);
             setTotalFetched(prevTotal => page === 0 ? fetchedImages.length : prevTotal + fetchedImages.length);
             setHasMore(fetchedImages.length === ITEMS_PER_PAGE);
-            
+
         } catch (err) {
             console.error("Failed to load images:", err);
             setError(err instanceof Error ? err.message : "An unknown error occurred");
@@ -51,13 +51,13 @@ const GalleryView: React.FC = () => {
             loadImages(nextPage);
         }
     };
-    
+
     return (
         // Removed container, mx-auto, px-4, py-8 as these are handled by .page-container in App.tsx
         // Added some vertical padding for content separation within the main view
         <div className="py-6">
             {/* Removed redundant h1 "Image Gallery" */}
-            
+
             {error && (
                 // Updated error message styling for better visual consistency
                 <div className="mb-6 p-4 text-center text-red-300 bg-red-800 bg-opacity-30 border border-red-700 rounded-md shadow-md">
@@ -94,7 +94,7 @@ const GalleryView: React.FC = () => {
             {!isLoading && hasMore && (
                 // Using the Button component for "Load More"
                 <div className="text-center mt-8 mb-4">
-                    <Button 
+                    <Button
                         onClick={handleLoadMore}
                         variant="primary" // Using primary variant for emphasis
                         disabled={isLoading}
@@ -103,19 +103,12 @@ const GalleryView: React.FC = () => {
                     </Button>
                 </div>
             )}
-            
+
             {!isLoading && !hasMore && images.length > 0 && (
-                 // Enhanced styling for "End of gallery" message
-                 <div className="text-center py-10">
-                    <svg className="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                        <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <h3 className="mt-2 text-lg font-medium text-gray-400">You've Reached the End</h3>
-                    <p className="mt-1 text-sm text-gray-500">All images have been loaded.</p>
-                 </div>
+                 <p className="text-center text-sm text-gray-500 py-10">You've reached the end of the gallery.</p>
             )}
         </div>
     );
 };
 
-export default GalleryView; 
+export default GalleryView;
