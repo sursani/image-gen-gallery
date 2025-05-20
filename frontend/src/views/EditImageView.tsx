@@ -134,10 +134,10 @@ function EditImageView() {
   const sectionHeadingClasses = "text-2xl font-semibold mb-6 text-gray-800 dark:text-gray-100";
 
   return (
-    <div className="py-6 space-y-10">
+    <div className="py-16 space-y-16">
       <h2 className={sectionHeadingClasses}>Edit Image</h2>
       
-      <Card className="space-y-8">
+      <Card padding="p-10" className="space-y-8 mb-16">
         <h2 className={sectionHeadingClasses}>1. Upload Images</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-10">
           <div>
@@ -168,7 +168,7 @@ function EditImageView() {
       </Card>
 
       {originalFile && originalPreviewUrl && (
-        <Card className="space-y-6">
+        <Card padding="p-10" className="space-y-6 mb-16">
            <h2 className={sectionHeadingClasses}>2. Describe Your Edit</h2>
            <ImageEditForm
              uploadedFile={originalFile}
@@ -193,7 +193,7 @@ function EditImageView() {
       )}
 
       {editResultUrl && !isLoading && (
-        <Card className="mt-10 text-center">
+        <Card padding="p-10" className="mt-10 text-center mb-16">
           <h2 className={`${sectionHeadingClasses} mb-6`}>3. Your Edited Image</h2>
           <div className="mb-6 bg-gray-100 dark:bg-gray-900 p-2 rounded-lg shadow-inner inline-block">
             <img

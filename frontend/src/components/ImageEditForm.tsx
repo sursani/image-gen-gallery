@@ -77,7 +77,7 @@ function ImageEditForm({ uploadedFile, previewUrl, onSubmit, isLoading }: ImageE
         </div>
 
         <div className="w-full lg:w-3/5">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-10">
             <div>
               <label htmlFor="editPrompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Edit Prompt <span className="text-red-500 dark:text-red-400">*</span>
