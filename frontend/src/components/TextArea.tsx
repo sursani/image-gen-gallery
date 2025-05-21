@@ -25,7 +25,7 @@ const TextArea: React.FC<TextAreaProps> = ({
     borderWidth: '1px',
     borderStyle: 'solid',
     borderRadius: '12px',
-    padding: '0.5rem 1rem',
+    padding: '0.75rem 1rem',
     width: fullWidth ? '100%' : undefined,
     resize: 'none' as 'none',
     boxSizing: 'border-box' as 'border-box',
@@ -47,7 +47,7 @@ const TextArea: React.FC<TextAreaProps> = ({
   };
   
   return (
-    <div style={{ marginBottom: '0.5rem', width: fullWidth ? '100%' : undefined, maxWidth: '100%' }}>
+    <div style={{ marginBottom: '1rem', width: fullWidth ? '100%' : undefined, maxWidth: '100%' }}>
       {label && (
         <label 
           htmlFor={textareaId} 

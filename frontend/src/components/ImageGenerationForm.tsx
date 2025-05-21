@@ -72,7 +72,8 @@ function ImageGenerationForm() {
   };
 
   // New styles for form elements
-  const selectBaseClasses = "w-full bg-dark-input text-dark-text-primary border border-dark-border rounded-ui-pill px-4 py-2 focus:outline-none focus:border-dark-accent transition-all duration-200";
+  const selectBaseClasses =
+    "w-full bg-dark-input text-dark-text-primary border border-dark-border rounded-ui-md px-4 py-3 focus:outline-none focus:border-dark-accent transition-all duration-200";
   const radioClasses = "h-4 w-4 text-dark-accent focus:ring-dark-accent border-dark-border bg-dark-input";
 
   // Direct styling for container

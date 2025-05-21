@@ -24,7 +24,7 @@ const TextInput: React.FC<TextInputProps> = ({
     borderWidth: '1px',
     borderStyle: 'solid',
     borderRadius: '999px',
-    padding: '0.5rem 1rem',
+    padding: '0.75rem 1rem',
     width: fullWidth ? '100%' : undefined
   };
   
@@ -43,7 +43,7 @@ const TextInput: React.FC<TextInputProps> = ({
   };
   
   return (
-    <div style={{ marginBottom: '1.25rem', width: fullWidth ? '100%' : undefined }}>
+    <div style={{ marginBottom: '1rem', width: fullWidth ? '100%' : undefined }}>
       {label && (
         <label 
           htmlFor={inputId} 
