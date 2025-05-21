@@ -102,6 +102,26 @@
   padding: 32px;
 }
 
+/* Responsive grid for the gallery */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: var(--space-md) var(--space-lg);
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .gallery-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .gallery-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 /* Direct class overrides for Tailwind classes that might be causing issues */
 .bg-dark-bg { background-color: #121212 !important; }
 .bg-dark-surface { background-color: #1E1E1E !important; }
