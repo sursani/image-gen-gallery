@@ -9,8 +9,23 @@ const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   children,
   className,
+  onMouseEnter,
+  onMouseLeave,
   ...props
 }) => {
+  // Track hover state so inline styles can react accordingly
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
+    setIsHovered(true);
+    onMouseEnter?.(e);
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    setIsHovered(false);
+    onMouseLeave?.(e);
+  };
+
   // Using direct inline styles as fallback
   const baseStyle = 'font-medium rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
 
@@ -25,9 +40,15 @@ const Button: React.FC<ButtonProps> = ({
 
   // Define inline styles for maximum compatibility
   const style = {
-    backgroundColor: variant === 'primary' ? '#252525' : 
-                     variant === 'secondary' ? '#1E1E1E' : 'transparent',
-    color: variant === 'primary' ? '#FFFFFF' : '#DDDDDD',
+    backgroundColor:
+      variant === 'primary'
+        ? isHovered
+          ? '#3366FF'
+          : '#252525'
+        : variant === 'secondary'
+        ? '#1E1E1E'
+        : 'transparent',
+    color: '#FFFFFF',
     borderColor: '#333333',
     borderWidth: '1px',
     borderStyle: 'solid',
@@ -35,9 +56,11 @@ const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <button 
-      className={combinedClassName} 
+    <button
+      className={combinedClassName}
       style={style}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       {...props}
     >
       {children}
