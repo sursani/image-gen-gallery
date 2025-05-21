@@ -1,9 +1,31 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './App.css'
 import Button from './components/Button'
 import GalleryView from './components/GalleryView'
 import ImageGenerationForm from './components/ImageGenerationForm'
 import EditImageView from './views/EditImageView'
+
+const pathToView = (path: string): string => {
+  switch (path) {
+    case '/create':
+      return 'create'
+    case '/edit':
+      return 'edit'
+    default:
+      return 'gallery'
+  }
+}
+
+const viewToPath = (view: string): string => {
+  switch (view) {
+    case 'create':
+      return '/create'
+    case 'edit':
+      return '/edit'
+    default:
+      return '/'
+  }
+}
 
 // Define main styles directly to ensure they apply
 const styles = {
@@ -55,7 +77,28 @@ const styles = {
 }
 
 function App() {
-  const [activeView, setActiveView] = useState('gallery')
+  const [activeView, setActiveView] = useState<string>(() => pathToView(window.location.pathname))
+
+  const navigate = useCallback((view: string) => {
+    const newPath = viewToPath(view)
+    window.history.pushState({ view }, '', newPath)
+    setActiveView(view)
+  }, [])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveView(pathToView(window.location.pathname))
+    }
+    window.addEventListener('popstate', handlePopState)
+    // Normalize the URL on first load if needed
+    const initialView = pathToView(window.location.pathname)
+    const initialPath = viewToPath(initialView)
+    if (initialPath !== window.location.pathname) {
+      window.history.replaceState({ view: initialView }, '', initialPath)
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const renderView = () => {
     switch (activeView) {
@@ -78,19 +121,19 @@ function App() {
           
           <nav style={styles.nav} className="mt-6 flex justify-center items-center space-x-6">
             <Button
-              onClick={() => setActiveView('gallery')}
+              onClick={() => navigate('gallery')}
               variant={activeView === 'gallery' ? 'primary' : 'outline'}
             >
               View Gallery
             </Button>
             <Button
-              onClick={() => setActiveView('create')}
+              onClick={() => navigate('create')}
               variant={activeView === 'create' ? 'primary' : 'outline'}
             >
               Create Image
             </Button>
             <Button
-              onClick={() => setActiveView('edit')}
+              onClick={() => navigate('edit')}
               variant={activeView === 'edit' ? 'primary' : 'outline'}
             >
               Edit Image
