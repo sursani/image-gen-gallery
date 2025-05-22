@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import ImageCard from '../components/ImageCard';
 import * as clientModule from '../api/client';
 

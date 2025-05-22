@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import Button from '../components/Button';
 
 /**
@@ -23,6 +23,7 @@ describe('Button', () => {
       const el = renderAndHover(v);
       // Each variant applies its own classes, verify at least one class token unique to the variant exists
       expect(el.className).toContain(v === 'icon' ? 'flex' : 'border');
+      cleanup();
     });
   });
 

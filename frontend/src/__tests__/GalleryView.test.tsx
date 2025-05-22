@@ -1,17 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import React from 'react';
 
-// Mock the client module BEFORE importing the component under test
+// Define mockFetch here, it will be in scope for the factory
 const mockFetch = vi.fn();
-vi.mock('../api/client', async () => {
-  const actual = await vi.importActual<any>('../api/client');
+
+vi.mock('../api/client', async (importOriginal) => {
+  const actual = await importOriginal<any>();
   return {
     ...actual,
-    fetchImageMetadata: mockFetch,
+    // Conditionally use the mock or the actual implementation if needed elsewhere
+    fetchImageMetadata: (...args: any[]) => mockFetch(...args),
   };
 });
 
+// Now import the component that uses the mocked module
 import GalleryView from '../components/GalleryView';
 
 const sampleImage = (id: string) => ({

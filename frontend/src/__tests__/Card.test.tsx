@@ -15,11 +15,11 @@ describe('Card', () => {
 
   it('applies custom padding class', () => {
     render(
-      <Card padding="p-2" data-testid="card">
+      <Card padding="p-2" data-testid="card-custom">
         Custom
       </Card>
     );
-    const card = screen.getByText('Custom').parentElement as HTMLElement;
+    const card = screen.getByTestId('card-custom') as HTMLElement;
     expect(card.className).toContain('p-2');
   });
 });
