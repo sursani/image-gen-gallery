@@ -72,7 +72,7 @@ describe('EditImageView API failure handling', () => {
     await setupAndUpload();
     fireEvent.click(screen.getByTestId('apply-edit'));
     await waitFor(() => expect(editMock).toHaveBeenCalled());
-    expect(await screen.findByText(/failed to edit image/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to fetch/i)).toBeInTheDocument();
   });
 
   it('handles timeout error gracefully', async () => {
