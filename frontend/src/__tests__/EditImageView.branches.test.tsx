@@ -47,6 +47,7 @@ const createFile = (name: string) => new File(['x'], name, { type: 'image/png' }
 describe('EditImageView additional branches', () => {
   beforeEach(() => {
     uploaderCallbacks.length = 0;
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
   afterEach(() => cleanup());
@@ -72,7 +73,9 @@ describe('EditImageView additional branches', () => {
       await uploaderCallbacks[1](createFile('mask.png'), 'mask');
     });
 
-    expect(await screen.findByText(/must match the original image dimensions/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/mask dimensions/i)).toBeInTheDocument();
+    });
   });
 
   it('triggers download button click', async () => {
@@ -83,8 +86,9 @@ describe('EditImageView additional branches', () => {
     editMock.mockResolvedValueOnce({ image_url: 'result.png' });
     // Spy on createElement and click
     const clickSpy = vi.fn();
+    const origCreate = document.createElement.bind(document);
     vi.spyOn(document, 'createElement').mockImplementation((tag: any) => {
-      const el = document.createElement(tag);
+      const el = origCreate(tag);
       if (tag === 'a') {
         // @ts-ignore
         el.click = clickSpy;

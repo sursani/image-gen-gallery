@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
+vi.resetModules();
 let retryOptions: any;
 vi.mock('axios-retry', () => ({
   default: (_client: any, opts: any) => { retryOptions = opts; },
@@ -11,7 +12,7 @@ vi.mock('axios', () => ({
   default: { create: () => ({ interceptors: { response: { use: () => {} } } }) },
 }));
 
-import apiClient from '../api/axiosSetup';
+await import('../api/axiosSetup');
 
 describe('axiosSetup retry logic', () => {
   it('defines retryCondition and retryDelay', () => {
