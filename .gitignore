@@ -62,4 +62,7 @@ dist/
 build/
 .coverage
 htmlcov/
-.pytest_cache/ 
+.pytest_cache/
+
+# Global pip freeze
+global-pip-freeze.txt 
