@@ -2,10 +2,11 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.resetModules();
 let retryOptions: any;
-vi.mock('axios-retry', () => ({
-  default: (_client: any, opts: any) => { retryOptions = opts; },
-  isNetworkOrIdempotentRequestError: () => true,
-}));
+vi.mock('axios-retry', () => {
+  const fn: any = (_client: any, opts: any) => { retryOptions = opts; };
+  fn.isNetworkOrIdempotentRequestError = () => true;
+  return { default: fn };
+});
 
 // Minimal axios mock
 vi.mock('axios', () => ({
