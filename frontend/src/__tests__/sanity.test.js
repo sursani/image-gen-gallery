@@ -1,6 +1,7 @@
-import test from 'node:test';
-import assert from 'node:assert';
+import { describe, it, expect } from 'vitest';
 
-test('sanity check', () => {
-  assert.strictEqual(1 + 1, 2);
+describe('sanity check', () => {
+  it('should pass a basic assertion', () => {
+    expect(1 + 1).toBe(2);
+  });
 });
