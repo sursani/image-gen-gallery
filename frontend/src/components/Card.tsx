@@ -4,9 +4,10 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   padding?: string;
+  [key: string]: any; // Allow any other props like data-testid
 }
 
-const Card: React.FC<CardProps> = ({ children, className, padding }) => {
+const Card: React.FC<CardProps> = ({ children, className, padding, ...rest }) => {
   const pad = padding || 'p-6';
   const combinedClassName = `${pad} bg-dark-surface border border-dark-border rounded-lg transition-all duration-200 ${className || ''}`.trim();
   
@@ -21,7 +22,7 @@ const Card: React.FC<CardProps> = ({ children, className, padding }) => {
   };
   
   return (
-    <div className={combinedClassName} style={style}>
+    <div className={combinedClassName} style={style} {...rest}>
       {children}
     </div>
   );
