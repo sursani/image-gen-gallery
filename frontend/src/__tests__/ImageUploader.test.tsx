@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import ImageUploader from '../components/ImageUploader';
 
 // Mock react-dropzone entirely so we can control the behaviour of the hook
@@ -40,7 +40,9 @@ describe('ImageUploader', () => {
 
     const file = createFile('test.png');
     // Simulate the drop event through captured onDrop callback
-    await dropzoneArgs.onDrop([file], []);
+    await act(async () => {
+      await dropzoneArgs.onDrop([file], []);
+    });
 
     // onImageUpload should have been called with file and preview url
     expect(onUpload).toHaveBeenCalledWith(file, 'blob:preview');
@@ -54,7 +56,9 @@ describe('ImageUploader', () => {
     const rejection = {
       errors: [{ code: 'file-invalid-type', message: 'wrong type' }],
     };
-    await dropzoneArgs.onDrop([], [rejection]);
+    await act(async () => {
+      await dropzoneArgs.onDrop([], [rejection]);
+    });
 
     expect(await screen.findByText(/invalid file type/i)).toBeInTheDocument();
   });
@@ -65,7 +69,9 @@ describe('ImageUploader', () => {
     const rejection = {
       errors: [{ code: 'file-too-large', message: 'too big' }],
     };
-    await dropzoneArgs.onDrop([], [rejection]);
+    await act(async () => {
+      await dropzoneArgs.onDrop([], [rejection]);
+    });
 
     expect(await screen.findByText(/maximum size/i)).toBeInTheDocument();
   });
@@ -75,7 +81,9 @@ describe('ImageUploader', () => {
     render(<ImageUploader onImageUpload={onUpload} disabled />);
 
     const file = createFile('test.png');
-    await dropzoneArgs.onDrop([file], []);
+    await act(async () => {
+      await dropzoneArgs.onDrop([file], []);
+    });
 
     // Early-return means callback not invoked and no preview rendered
     expect(onUpload).not.toHaveBeenCalled();
