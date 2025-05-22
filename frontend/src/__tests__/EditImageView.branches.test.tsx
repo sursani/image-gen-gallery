@@ -15,10 +15,14 @@ vi.mock('../components/ImageUploader', () => ({
   },
 }));
 
-// Mock ImageEditForm for download/save section not needed here
+// Mock ImageEditForm to expose submit button that triggers onSubmit
 vi.mock('../components/ImageEditForm', () => ({
   __esModule: true,
-  default: () => null,
+  default: ({ onSubmit, isLoading }: any) => (
+    <button disabled={isLoading} onClick={() => onSubmit('prompt')} data-testid="apply-edit">
+      Apply
+    </button>
+  ),
 }));
 
 const editMock = vi.fn();
@@ -39,13 +43,27 @@ describe('EditImageView API failure handling', () => {
     // @ts-ignore
     global.Image = class { onload:any; set src(_s:string){ this.onload&&this.onload(); } naturalWidth=100; naturalHeight=100; };
     render(<EditImageView />);
+    // Wait for uploader to register
+    await waitFor(() => expect(uploaderCallbacks.length).toBeGreaterThan(0));
     await act(async () => uploaderCallbacks[0](createFile('orig.png'), 'orig'));
+    // Wait for apply button to appear
+    await screen.findByTestId('apply-edit');
   };
 
-  it('displays generic error message on unknown failure', async () => {
+  it('shows boom message when editImage rejects with Error', async () => {
     editMock.mockRejectedValueOnce(new Error('boom'));
     await setupAndUpload();
-    // trigger submit via custom mock uploader (ImageEditForm is null) directly call handleEditSubmit not accessible;
-    // instead we simulate mask-less flow by calling editMock through uploaderCallbacks isn't possible; so manually invoke editMock failure by clicking Save to Gallery not necessary; easiest approach: directly call editMock reject inside uploader to set error? We'll mimic by firing a submit.
+    fireEvent.click(screen.getByTestId('apply-edit'));
+    await waitFor(() => expect(editMock).toHaveBeenCalled());
+    expect(await screen.findByText(/boom/i)).toBeInTheDocument();
+  });
+
+  it('shows default message when editImage rejects with non Error', async () => {
+    // reject with empty object
+    editMock.mockRejectedValueOnce({});
+    await setupAndUpload();
+    fireEvent.click(screen.getByTestId('apply-edit'));
+    await waitFor(() => expect(editMock).toHaveBeenCalled());
+    expect(await screen.findByText(/failed to edit image/i)).toBeInTheDocument();
   });
 });

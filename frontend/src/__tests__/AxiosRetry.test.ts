@@ -1,19 +1,23 @@
 import { describe, it, expect, vi } from 'vitest';
 
-vi.resetModules();
 let retryOptions: any;
-vi.mock('axios-retry', () => {
-  const fn: any = (_client: any, opts: any) => { retryOptions = opts; };
-  fn.isNetworkOrIdempotentRequestError = () => true;
-  return { default: fn };
+
+vi.isolateModules(() => {
+  vi.mock('axios', () => ({
+    default: {
+      create: () => ({ interceptors: { response: { use: () => {} } } }),
+    },
+  }));
+
+  vi.mock('axios-retry', () => {
+    const fn: any = (_client: any, opts: any) => { retryOptions = opts; };
+    fn.isNetworkOrIdempotentRequestError = () => true;
+    return { default: fn };
+  });
+
+  // @ts-ignore
+  require('../api/axiosSetup');
 });
-
-// Minimal axios mock
-vi.mock('axios', () => ({
-  default: { create: () => ({ interceptors: { response: { use: () => {} } } }) },
-}));
-
-await import('../api/axiosSetup');
 
 describe('axiosSetup retry logic', () => {
   it('defines retryCondition and retryDelay', () => {
