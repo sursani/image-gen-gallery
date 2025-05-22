@@ -66,4 +66,20 @@ describe('EditImageView API failure handling', () => {
     await waitFor(() => expect(editMock).toHaveBeenCalled());
     expect(await screen.findByText(/failed to edit image/i)).toBeInTheDocument();
   });
+
+  it('handles network failure gracefully', async () => {
+    editMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await setupAndUpload();
+    fireEvent.click(screen.getByTestId('apply-edit'));
+    await waitFor(() => expect(editMock).toHaveBeenCalled());
+    expect(await screen.findByText(/failed to edit image/i)).toBeInTheDocument();
+  });
+
+  it('handles timeout error gracefully', async () => {
+    editMock.mockRejectedValueOnce({ code: 'ECONNABORTED' });
+    await setupAndUpload();
+    fireEvent.click(screen.getByTestId('apply-edit'));
+    await waitFor(() => expect(editMock).toHaveBeenCalled());
+    expect(await screen.findByText(/failed to edit image/i)).toBeInTheDocument();
+  });
 });
