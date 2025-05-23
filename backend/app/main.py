@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,6 +12,7 @@ from .routes.generation_routes import router as generation_router
 from .routes.editing_routes import router as editing_router
 # Async DB ping helper uses the new image_service
 from .services import image_service
+from .services.image_service import initialize_database
 # ---------------------------------------------------------------------------
 # Database initialization moved to an async FastAPI startup hook so that it
 # runs inside the event-loop and uses the new aiosqlite implementation without
@@ -27,23 +29,11 @@ if settings.openai_api_key:
 
     logging.getLogger(__name__).info("OpenAI API key loaded successfully.")
 
-app = FastAPI(
-    title="AI Image Generation API",
-    description="API for generating and editing images using OpenAI.",
-    version="1.0.0"
-)
 
-# ---------------------------------------------------------------------------
-# Startup tasks
-# ---------------------------------------------------------------------------
-
-from .services.image_service import initialize_database
-
-
-@app.on_event("startup")
-async def _startup_db() -> None:
-    """Initialise the SQLite schema without blocking the event loop."""
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan events."""
+    # Startup
     try:
         await initialize_database()
     except Exception as e:
@@ -51,6 +41,23 @@ async def _startup_db() -> None:
         # throw 500s later.
         print(f"ERROR: Failed to initialize database: {e}")
         raise
+    
+    yield
+    
+    # Shutdown (if needed)
+    # Add any cleanup code here
+
+
+app = FastAPI(
+    title="AI Image Generation API",
+    description="API for generating and editing images using OpenAI.",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# ---------------------------------------------------------------------------
+# Startup tasks
+# ---------------------------------------------------------------------------
 
 # Configure CORS
 app.add_middleware(

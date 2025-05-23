@@ -7,7 +7,7 @@ import logging.config
 
 # Optional dependency
 try:
-    from pythonjsonlogger import jsonlogger  # type: ignore
+    from pythonjsonlogger import json as jsonlogger  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover
     jsonlogger = None  # fallback to plain formatter only
 

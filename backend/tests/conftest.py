@@ -8,14 +8,6 @@ from fastapi.testclient import TestClient
 # dir), so we wrap it inside a fixture.
 
 
-@pytest_asyncio.fixture(scope="function")
-def event_loop():
-    """Create an asyncio event loop for each test function."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
 @pytest_asyncio.fixture()
 async def tmp_storage_dir(tmp_path, monkeypatch):
     """Redirect Settings.storage_dir to a unique temporary directory."""
