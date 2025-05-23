@@ -1,22 +1,15 @@
 import apiClient from './axiosSetup'; // Import the configured client
-import axios from 'axios'; // Keep for isAxiosError check, or refactor error check
 
 // Base URL is now handled by apiClient
 // const API_BASE_URL = 'http://localhost:8000/api'; 
 
-// Interface for the response (assuming it returns similar metadata to generation)
+// Interface for the response - matches the ImageMetadata from backend
 interface EditImageResponse {
   id: string;
   prompt: string;
-  // Edits don't typically return a revised prompt
-  image_url: string;
-  created_at: string;
-  parameters: {
-    size: string;
-    type: 'edit';
-    original_prompt: string;
-    // Add other relevant parameters if the backend includes them
-  };
+  parameters: Record<string, any> | string | null;
+  filename: string;
+  timestamp: string; // ISO 8601 date string
 }
 
 /**

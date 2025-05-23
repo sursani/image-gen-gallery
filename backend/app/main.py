@@ -6,8 +6,9 @@ from .core.logging import init_logging
 from .core.settings import settings
 
 init_logging()
-from .routes import editing, gallery, image_routes
+from .routes import gallery, image_routes
 from .routes.generation_routes import router as generation_router
+from .routes.editing_routes import router as editing_router
 # Async DB ping helper uses the new image_service
 from .services import image_service
 # ---------------------------------------------------------------------------
@@ -81,7 +82,7 @@ async def health_check():
 
 # Add routers for image generation, editing, and gallery
 app.include_router(generation_router, prefix="/api/generate", tags=["Generation"])
-app.include_router(editing.router, prefix="/api/edit", tags=["Editing"])
+app.include_router(editing_router, prefix="/api/edit", tags=["Editing"])
 # app.include_router(gallery.router, prefix="/api/gallery", tags=["Gallery"])
 
 # Add the new image metadata router

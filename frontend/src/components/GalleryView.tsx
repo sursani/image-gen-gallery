@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { fetchImageMetadata, ImageMetadata } from '../api/client';
 import ImageCard from './ImageCard';
 import LoadingSpinner from './LoadingSpinner';
@@ -6,7 +6,11 @@ import Button from './Button';
 
 const ITEMS_PER_PAGE = 12;
 
-const GalleryView: React.FC = () => {
+export interface GalleryViewRef {
+    refresh: () => void;
+}
+
+const GalleryView = forwardRef<GalleryViewRef>((props, ref) => {
     const [images, setImages] = useState<ImageMetadata[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -38,6 +42,17 @@ const GalleryView: React.FC = () => {
             setIsLoading(false);
         }
     }, []);
+
+    const refresh = useCallback(() => {
+        setCurrentPage(0);
+        setHasMore(true);
+        setTotalFetched(0);
+        loadImages(0);
+    }, [loadImages]);
+
+    useImperativeHandle(ref, () => ({
+        refresh
+    }), [refresh]);
 
     useEffect(() => {
         loadImages(0);
@@ -100,6 +115,6 @@ const GalleryView: React.FC = () => {
             )}
         </div>
     );
-};
+});
 
 export default GalleryView;

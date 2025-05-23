@@ -21,6 +21,11 @@ vi.mock('../api/imageEditing', () => ({
   editImage: (...args: any[]) => editMock(...args),
 }));
 
+// Mock the getImageUrl function
+vi.mock('../api/client', () => ({
+  getImageUrl: (id: string) => `http://localhost:8000/api/images/${id}`,
+}));
+
 // Mock ImageEditForm with a simple button that triggers onSubmit
 vi.mock('../components/ImageEditForm', () => ({
   __esModule: true,
@@ -58,7 +63,14 @@ describe('EditImageView', () => {
   });
 
   it('shows error when mask uploaded before original, then succeeds and displays result', async () => {
-    editMock.mockResolvedValueOnce({ image_url: 'edited.png' });
+    // Mock response with correct structure (ImageMetadata)
+    editMock.mockResolvedValueOnce({ 
+      id: 'test-image-id',
+      prompt: 'great prompt',
+      parameters: { size: '1024x1024', type: 'edit' },
+      filename: 'edited.png',
+      timestamp: '2023-01-01T00:00:00Z'
+    });
     render(<EditImageView />);
 
     // uploaderCallbacks[1] corresponds to mask uploader (disabled initially but collected)

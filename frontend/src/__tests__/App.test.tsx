@@ -4,7 +4,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from '../App';
 
 // Mock heavy child views to simple placeholders so rendering is fast and deterministic
-vi.mock('../components/GalleryView', () => ({ default: () => <div data-testid="gallery">Gallery</div> }));
+vi.mock('../components/GalleryView', () => ({ 
+  default: React.forwardRef(() => <div data-testid="gallery">Gallery</div>) 
+}));
 vi.mock('../components/ImageGenerationForm', () => ({ default: () => <div data-testid="create">Create</div> }));
 vi.mock('../views/EditImageView', () => ({ default: () => <div data-testid="edit">Edit</div> }));
 

@@ -1,13 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import ImageUploader from '../components/ImageUploader';
 import ImageEditForm from '../components/ImageEditForm';
 import { editImage } from '../api/imageEditing'; // Import the new API function
+import { getImageUrl } from '../api/client'; // Import the getImageUrl function
 import Button from '../components/Button'; // Import Button
 import ErrorMessage from '../components/ErrorMessage'; // Import the new component
 import LoadingSpinner from '../components/LoadingSpinner'; // Import themed spinner
 import Card from '../components/Card';
 
-function EditImageView() {
+interface EditImageViewProps {
+  navigate?: (view: string) => void;
+}
+
+function EditImageView({ navigate }: EditImageViewProps) {
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [originalPreviewUrl, setOriginalPreviewUrl] = useState<string | null>(null);
   const [maskFile, setMaskFile] = useState<File | null>(null);
@@ -20,6 +25,7 @@ function EditImageView() {
   const [isLoading, setIsLoading] = useState(false);
   const [editResultUrl, setEditResultUrl] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string>("1024x1024");
 
   // Helper to check image dimensions
   const getImageDimensions = (url: string): Promise<{ width: number; height: number }> => {
@@ -83,22 +89,32 @@ function EditImageView() {
     console.log('Submitting edit request:', { prompt, originalFile, maskFile });
 
     try {
-      // Determine the size parameter (needs UI later, default for now)
-      const size = "1024x1024"; 
-      
       const response = await editImage(
         prompt,
         originalFile,
         maskFile, // Pass the mask file state
-        size
+        selectedSize
       );
 
       console.log('Image edit successful:', response);
-      setEditResultUrl(response.image_url); // Set the result URL from the API response
+      // Construct the image URL from the response ID
+      const imageUrl = getImageUrl(response.id);
+      setEditResultUrl(imageUrl);
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Image edit failed:', error);
-      setEditError(error.message || 'Failed to edit image.'); // Use the error message potentially passed from the API client
+      const errorMessage = error instanceof Error ? error.message : 'Failed to edit image';
+      
+      // Provide more user-friendly error messages
+      if (errorMessage.includes('rate limit')) {
+        setEditError('Too many requests. Please wait a moment and try again.');
+      } else if (errorMessage.includes('content policy')) {
+        setEditError('Your prompt was rejected due to content policy violations.');
+      } else if (errorMessage.includes('timeout')) {
+        setEditError('The request timed out. Please try again.');
+      } else {
+        setEditError(errorMessage || 'Failed to edit image. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -117,18 +133,13 @@ function EditImageView() {
     document.body.removeChild(link);
   };
 
-  // Placeholder function for saving to gallery
-  const handleSaveToGallery = () => {
-    if (!editResultUrl || !originalFile) return;
-    console.log('Saving to gallery (placeholder):', {
-      imageUrl: editResultUrl,
-      originalPrompt: (document.getElementById('editPrompt') as HTMLTextAreaElement)?.value || 'N/A', // Get prompt from form
-      // Add other relevant metadata if available
-    });
-    // In a real implementation, this would likely involve:
-    // 1. Calling a backend endpoint to confirm save (if backend manages gallery)
-    // 2. Or updating a shared state (e.g., Context API, Redux) if frontend manages gallery
-    alert('Image saved to gallery! (Placeholder)');
+  // Navigate to gallery (image is already saved)
+  const handleViewInGallery = () => {
+    if (navigate) {
+      navigate('gallery');
+    } else {
+      console.warn('Navigate function not provided to EditImageView');
+    }
   };
 
   const sectionHeadingClasses = "text-2xl font-semibold mb-6 text-gray-800 dark:text-gray-100";
@@ -169,7 +180,25 @@ function EditImageView() {
 
       {originalFile && originalPreviewUrl && (
         <Card padding="p-10" className="space-y-6 mb-16">
-           <h2 className={sectionHeadingClasses}>2. Describe Your Edit</h2>
+           <h2 className={sectionHeadingClasses}>2. Configure Edit Settings</h2>
+           
+           <div className="mb-6">
+             <label htmlFor="size-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+               Output Size
+             </label>
+             <select
+               id="size-select"
+               value={selectedSize}
+               onChange={(e) => setSelectedSize(e.target.value)}
+               className="w-full md:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+               disabled={isLoading}
+             >
+               <option value="1024x1024">Square (1024x1024)</option>
+               <option value="1792x1024">Landscape (1792x1024)</option>
+               <option value="1024x1792">Portrait (1024x1792)</option>
+             </select>
+           </div>
+           
            <ImageEditForm
              uploadedFile={originalFile}
              previewUrl={originalPreviewUrl}
@@ -192,24 +221,43 @@ function EditImageView() {
         </div>
       )}
 
-      {editResultUrl && !isLoading && (
+      {/* Show result section even before editing for better UX */}
+      {originalFile && originalPreviewUrl && (
         <Card padding="p-10" className="mt-10 text-center mb-16">
           <h2 className={`${sectionHeadingClasses} mb-6`}>3. Your Edited Image</h2>
-          <div className="mb-6 bg-gray-100 dark:bg-gray-900 p-2 rounded-lg shadow-inner inline-block">
-            <img
-              src={editResultUrl}
-              alt="Edited result"
-              className="max-w-full h-auto md:max-h-[512px] rounded-md border border-gray-300 dark:border-gray-700"
-            />
-          </div>
-          <div className="flex justify-center space-x-4">
-            <Button onClick={handleDownload} variant="outline">
-              Download Image
-            </Button>
-            <Button onClick={handleSaveToGallery} variant="primary">
-              Save to Gallery
-            </Button>
-          </div>
+          
+          {editResultUrl ? (
+            <>
+              <div className="mb-6 bg-gray-100 dark:bg-gray-900 p-2 rounded-lg shadow-inner inline-block">
+                <img
+                  src={editResultUrl}
+                  alt="Edited result"
+                  className="max-w-full h-auto md:max-h-[512px] rounded-md border border-gray-300 dark:border-gray-700"
+                />
+              </div>
+              <p className="text-sm text-green-600 dark:text-green-400 mb-4">✓ Image has been saved to the gallery</p>
+              <div className="flex justify-center space-x-4">
+                <Button onClick={handleDownload} variant="outline">
+                  Download Image
+                </Button>
+                <Button onClick={handleViewInGallery} variant="primary">
+                  View in Gallery
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="py-12">
+              <p className="text-gray-500 dark:text-gray-400 mb-4">Your edited image will appear here</p>
+              <div className="flex justify-center space-x-4">
+                <Button variant="outline" disabled>
+                  Download Image
+                </Button>
+                <Button variant="primary" disabled>
+                  View in Gallery
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       )}
     </div>
