@@ -1,0 +1,207 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# FastAPI Backend Development Rules
+
+## **Project Structure & Organization**
+- **Follow the established layered architecture:**
+  - `app/core/` - Configuration, logging, and core utilities
+  - `app/models/` - Pydantic models for data structures
+  - `app/schemas/` - Request/response schemas and validation
+  - `app/services/` - Business logic and external API integrations
+  - `app/routes/` - FastAPI route handlers
+  - `tests/` - Comprehensive test suite
+
+## **Import Organization**
+- **Standard library imports first, then third-party, then local imports**
+- **Use relative imports for local modules:** `from ..services import openai_service`
+- **Import specific items rather than entire modules when possible**
+
+```python
+# ✅ DO: Proper import organization
+import logging
+from typing import Optional, List
+from fastapi import APIRouter, HTTPException
+from ..services import openai_service
+from ..models.image_metadata import ImageMetadata
+
+# ❌ DON'T: Mixed import styles
+from fastapi import *
+import backend.app.services.openai_service
+```
+
+## **Configuration Management**
+- **Use the centralized settings pattern:** Import `from ..core.settings import settings`
+- **All environment variables must be defined in [settings.py](mdc:backend/app/core/settings.py)**
+- **Use pydantic-settings BaseSettings for type safety**
+
+```python
+# ✅ DO: Use centralized settings
+from ..core.settings import settings
+api_key = settings.openai_api_key
+
+# ❌ DON'T: Direct environment access
+import os
+api_key = os.getenv("OPENAI_API_KEY")
+```
+
+## **Logging Patterns**
+- **Use structured logging:** `logger = logging.getLogger(__name__)`
+- **Log at appropriate levels:** INFO for operations, ERROR for failures, WARNING for retries
+- **Include context in log messages:** Request IDs, user actions, error details
+
+```python
+# ✅ DO: Structured logging with context
+logger = logging.getLogger(__name__)
+logger.info(f"Received image generation request for prompt: '{request.prompt}'")
+logger.error(f"OpenAI API error during image generation: {e}")
+
+# ❌ DON'T: Print statements or generic logging
+print("Something happened")
+logging.error("Error occurred")
+```
+
+## **Route Handler Patterns**
+- **Use descriptive function names:** `handle_generate_image`, `get_image_metadata`
+- **Include comprehensive docstrings with Args and Returns**
+- **Use proper HTTP status codes and error handling**
+- **Return appropriate Pydantic models**
+
+```python
+# ✅ DO: Well-structured route handler
+@router.post("/", response_model=ImageMetadata)
+async def handle_generate_image(request: GenerateImageRequest = Body(...)):
+    """Handles image generation requests."""
+    logger.info(f"Received image generation request for prompt: '{request.prompt}'")
+    
+    try:
+        # Business logic here
+        return saved_metadata
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+```
+
+## **Error Handling**
+- **Use HTTPException for API errors with appropriate status codes**
+- **Catch and re-raise HTTPExceptions to preserve status codes**
+- **Log errors with `exc_info=True` for stack traces**
+- **Provide meaningful error messages to clients**
+
+```python
+# ✅ DO: Proper error handling
+try:
+    result = await some_operation()
+except HTTPException as http_exc:
+    raise http_exc  # Preserve HTTP status
+except SpecificError as e:
+    logger.error(f"Specific error occurred: {e}")
+    raise HTTPException(status_code=400, detail="Specific error message")
+except Exception as e:
+    logger.error(f"Unexpected error: {e}", exc_info=True)
+    raise HTTPException(status_code=500, detail="Internal server error")
+```
+
+## **Async/Await Patterns**
+- **Use async/await consistently for I/O operations**
+- **Prefer AsyncOpenAI over sync OpenAI client**
+- **Use aiofiles for file operations**
+- **Use httpx.AsyncClient for HTTP requests**
+
+```python
+# ✅ DO: Async patterns
+async def save_image_data(image_data: str, filename: str):
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(image_bytes)
+
+# ❌ DON'T: Blocking operations in async functions
+def save_image_data(image_data: str, filename: str):
+    with open(file_path, 'wb') as f:
+        f.write(image_bytes)
+```
+
+## **Service Layer Patterns**
+- **Implement retry logic using tenacity for external APIs**
+- **Return typed results (Optional, List, etc.)**
+- **Handle both success and failure cases explicitly**
+- **Use dependency injection patterns for testability**
+
+```python
+# ✅ DO: Service with retry and proper typing
+@retry_strategy
+async def generate_image_from_prompt(
+    prompt: str,
+    model: str = "gpt-image-1",
+    size: str = "1024x1024"
+) -> tuple[Optional[List[str]], Optional[str]]:
+    """Generate image with retry logic and proper return types."""
+    try:
+        # Implementation
+        return image_data_list, revised_prompt
+    except RateLimitError as e:
+        logger.warning(f"Rate limit hit: {e}. Retrying...")
+        raise  # Re-raise for tenacity
+```
+
+## **Model and Schema Patterns**
+- **Use Pydantic v2 syntax:** `from_attributes = True` instead of `orm_mode = True`
+- **Include proper Field defaults and validation**
+- **Use Union types with `|` syntax for Python 3.10+**
+- **Separate request/response schemas from data models**
+
+```python
+# ✅ DO: Modern Pydantic patterns
+class ImageMetadata(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    parameters: dict | str | None = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        from_attributes = True  # Pydantic v2
+```
+
+## **Testing Requirements**
+- **Write comprehensive tests for all routes and services**
+- **Mock external dependencies (OpenAI, file system)**
+- **Test both success and error paths**
+- **Use pytest fixtures for common setup**
+- **Follow the existing test patterns in [tests/](mdc:backend/tests)**
+
+```python
+# ✅ DO: Comprehensive test coverage
+@pytest.mark.asyncio
+async def test_generate_image_success(mock_openai_client):
+    """Test successful image generation."""
+    # Setup mocks
+    # Call function
+    # Assert results
+
+@pytest.mark.asyncio  
+async def test_generate_image_api_error(mock_openai_client):
+    """Test API error handling."""
+    # Setup error mock
+    # Call function
+    # Assert error handling
+```
+
+## **Database Patterns**
+- **Use async database operations**
+- **Follow the established SQLite + aiosqlite pattern**
+- **Implement proper connection management**
+- **Use the image_service layer for database operations**
+
+## **File Storage Patterns**
+- **Use the established storage_dir structure**
+- **Generate unique filenames with UUIDs**
+- **Handle file operations asynchronously**
+- **Store relative paths in database, absolute paths in code**
+
+## **API Documentation**
+- **Include comprehensive docstrings for all public functions**
+- **Use FastAPI's automatic OpenAPI generation**
+- **Add proper tags and descriptions to routes**
+- **Document expected request/response formats**

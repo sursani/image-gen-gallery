@@ -1,0 +1,361 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Testing Patterns and Conventions
+
+## **General Testing Principles**
+- **Maintain 100% test coverage for critical functionality**
+- **Test behavior, not implementation details**
+- **Write tests that are readable and maintainable**
+- **Mock external dependencies and side effects**
+- **Test both happy paths and error scenarios**
+
+## **Frontend Testing (Vitest + React Testing Library)**
+
+### **Test File Organization**
+- **Place tests in `src/__tests__/` directory**
+- **Use descriptive test file names:** `Component.test.tsx`, `Component.branches.test.tsx`
+- **Group related tests in describe blocks**
+- **Use clear, descriptive test names**
+
+```tsx
+// ✅ DO: Well-organized test structure
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import Button from '../components/Button';
+
+describe('Button Component', () => {
+  describe('Rendering', () => {
+    it('renders with default primary variant', () => {
+      render(<Button>Click me</Button>);
+      expect(screen.getByRole('button')).toBeInTheDocument();
+    });
+
+    it('applies correct variant styles', () => {
+      render(<Button variant="outline">Click me</Button>);
+      expect(screen.getByRole('button')).toHaveClass('bg-transparent');
+    });
+  });
+
+  describe('User Interactions', () => {
+    it('handles click events correctly', async () => {
+      const handleClick = vi.fn();
+      render(<Button onClick={handleClick}>Click me</Button>);
+      
+      await userEvent.click(screen.getByRole('button'));
+      expect(handleClick).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+```
+
+### **Component Testing Patterns**
+- **Use React Testing Library queries in order of preference:** `getByRole`, `getByLabelText`, `getByText`
+- **Test user interactions with `userEvent` instead of `fireEvent`**
+- **Use `waitFor` for async operations**
+- **Mock API calls and external dependencies**
+
+```tsx
+// ✅ DO: Proper component testing
+import { render, screen, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
+import * as apiClient from '../api/client';
+import GalleryView from '../components/GalleryView';
+
+// Mock API module
+vi.mock('../api/client');
+const mockFetchImageMetadata = vi.mocked(apiClient.fetchImageMetadata);
+
+describe('GalleryView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('displays loading state initially', () => {
+    mockFetchImageMetadata.mockImplementation(() => new Promise(() => {}));
+    render(<GalleryView />);
+    expect(screen.getByText('Loading images...')).toBeInTheDocument();
+  });
+
+  it('displays images after successful fetch', async () => {
+    const mockImages = [
+      { id: '1', prompt: 'Test image', filename: 'test.png', timestamp: '2023-01-01' }
+    ];
+    mockFetchImageMetadata.mockResolvedValue(mockImages);
+    
+    render(<GalleryView />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('Test image')).toBeInTheDocument();
+    });
+  });
+
+  it('handles API errors gracefully', async () => {
+    mockFetchImageMetadata.mockRejectedValue(new Error('API Error'));
+    
+    render(<GalleryView />);
+    
+    await waitFor(() => {
+      expect(screen.getByText(/failed to load images/i)).toBeInTheDocument();
+    });
+  });
+});
+```
+
+### **API Testing Patterns**
+- **Mock fetch calls and HTTP responses**
+- **Test error handling and retry logic**
+- **Verify correct request parameters**
+
+```tsx
+// ✅ DO: API client testing
+import { vi } from 'vitest';
+import { fetchImageMetadata } from '../api/client';
+
+// Mock global fetch
+global.fetch = vi.fn();
+const mockFetch = vi.mocked(fetch);
+
+describe('API Client', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('fetches image metadata with correct parameters', async () => {
+    const mockResponse = [{ id: '1', prompt: 'test' }];
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockResponse),
+    } as Response);
+
+    const result = await fetchImageMetadata({ limit: 10, sort: 'newest' });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('limit=10&sort=newest')
+    );
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('handles API errors properly', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ detail: 'Server error' }),
+    } as Response);
+
+    await expect(fetchImageMetadata()).rejects.toThrow('Server error');
+  });
+});
+```
+
+## **Backend Testing (Pytest + AsyncIO)**
+
+### **Test File Organization**
+- **Place tests in `backend/tests/` directory**
+- **Use descriptive test file names:** `test_generate_route.py`, `test_openai_service.py`
+- **Group related tests in classes or functions**
+- **Use pytest fixtures for common setup**
+
+```python
+# ✅ DO: Well-organized backend tests
+import pytest
+from unittest.mock import AsyncMock, patch
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+class TestGenerationRoute:
+    """Test image generation endpoint."""
+    
+    @pytest.mark.asyncio
+    async def test_generate_image_success(self, mock_openai_service):
+        """Test successful image generation."""
+        # Setup mock
+        mock_openai_service.generate_image_from_prompt.return_value = (
+            ["base64_image_data"], "revised_prompt"
+        )
+        
+        # Make request
+        response = client.post("/api/generate/", json={
+            "prompt": "A beautiful sunset",
+            "size": "1024x1024",
+            "quality": "auto",
+            "n": 1
+        })
+        
+        # Assert response
+        assert response.status_code == 200
+        data = response.json()
+        assert data["prompt"] == "A beautiful sunset"
+        assert "id" in data
+
+    @pytest.mark.asyncio
+    async def test_generate_image_validation_error(self):
+        """Test validation error handling."""
+        response = client.post("/api/generate/", json={
+            "prompt": "",  # Invalid empty prompt
+            "size": "invalid_size"
+        })
+        
+        assert response.status_code == 422
+        assert "detail" in response.json()
+```
+
+### **Async Testing Patterns**
+- **Use `@pytest.mark.asyncio` for async tests**
+- **Mock async functions with `AsyncMock`**
+- **Test both success and failure scenarios**
+- **Use proper fixtures for database and external services**
+
+```python
+# ✅ DO: Async testing patterns
+import pytest
+from unittest.mock import AsyncMock, patch
+from app.services.openai_service import generate_image_from_prompt
+
+class TestOpenAIService:
+    """Test OpenAI service functions."""
+    
+    @pytest.mark.asyncio
+    @patch('app.services.openai_service.client')
+    async def test_generate_image_success(self, mock_client):
+        """Test successful image generation."""
+        # Setup mock response
+        mock_response = AsyncMock()
+        mock_response.data = [
+            AsyncMock(b64_json="base64_data", revised_prompt="revised")
+        ]
+        mock_client.images.generate.return_value = mock_response
+        
+        # Call function
+        result, revised = await generate_image_from_prompt(
+            prompt="test prompt",
+            model="gpt-image-1"
+        )
+        
+        # Assert results
+        assert result == ["base64_data"]
+        assert revised == "revised"
+        mock_client.images.generate.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch('app.services.openai_service.client')
+    async def test_generate_image_api_error(self, mock_client):
+        """Test API error handling."""
+        from openai import APIError
+        
+        mock_client.images.generate.side_effect = APIError("API Error")
+        
+        result, revised = await generate_image_from_prompt("test")
+        
+        assert result is None
+        assert revised is None
+```
+
+### **Database Testing Patterns**
+- **Use test database or in-memory SQLite**
+- **Clean up data between tests**
+- **Test database operations independently**
+
+```python
+# ✅ DO: Database testing
+import pytest
+import tempfile
+import os
+from app.services.image_service import initialize_database, save_image_metadata
+
+@pytest.fixture
+async def test_db():
+    """Create a temporary test database."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.db') as tmp:
+        test_db_path = tmp.name
+    
+    # Initialize test database
+    original_db = os.environ.get('DB_FILENAME')
+    os.environ['DB_FILENAME'] = test_db_path
+    
+    await initialize_database()
+    
+    yield test_db_path
+    
+    # Cleanup
+    if original_db:
+        os.environ['DB_FILENAME'] = original_db
+    os.unlink(test_db_path)
+
+@pytest.mark.asyncio
+async def test_save_image_metadata(test_db):
+    """Test saving image metadata to database."""
+    metadata = await save_image_metadata(
+        prompt="test prompt",
+        filename="test.png",
+        parameters={"model": "gpt-image-1"}
+    )
+    
+    assert metadata.id is not None
+    assert metadata.prompt == "test prompt"
+    assert metadata.filename == "test.png"
+```
+
+## **Mock and Fixture Patterns**
+
+### **Frontend Mocking**
+- **Mock API modules at the module level**
+- **Use `vi.mocked()` for type-safe mocks**
+- **Clear mocks between tests**
+
+```tsx
+// ✅ DO: Proper frontend mocking
+import { vi } from 'vitest';
+import * as apiClient from '../api/client';
+
+vi.mock('../api/client');
+const mockFetchImageMetadata = vi.mocked(apiClient.fetchImageMetadata);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+```
+
+### **Backend Mocking**
+- **Use `unittest.mock.patch` for external dependencies**
+- **Create reusable fixtures for common mocks**
+- **Mock at the appropriate level (service, client, etc.)**
+
+```python
+# ✅ DO: Proper backend mocking
+import pytest
+from unittest.mock import AsyncMock, patch
+
+@pytest.fixture
+def mock_openai_service():
+    """Mock OpenAI service functions."""
+    with patch('app.routes.generation_routes.openai_service') as mock:
+        mock.generate_image_from_prompt = AsyncMock()
+        mock.save_image_from_base64 = AsyncMock()
+        yield mock
+
+@pytest.fixture
+def mock_settings():
+    """Mock application settings."""
+    with patch('app.core.settings.settings') as mock:
+        mock.openai_api_key = "test_key"
+        mock.storage_dir = "/tmp/test_storage"
+        yield mock
+```
+
+## **Coverage and Quality**
+- **Maintain high test coverage (aim for 90%+)**
+- **Use coverage reports to identify untested code**
+- **Write tests for edge cases and error conditions**
+- **Ensure tests are deterministic and isolated**
+
+## **Continuous Integration**
+- **Run tests in CI/CD pipeline**
+- **Fail builds on test failures or coverage drops**
+- **Use appropriate test timeouts**
+- **Run tests in parallel when possible**

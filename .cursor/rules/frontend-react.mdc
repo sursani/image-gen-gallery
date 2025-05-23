@@ -1,0 +1,332 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# React Frontend Development Rules
+
+## **Project Structure & Organization**
+- **Follow the established component-based architecture:**
+  - `src/components/` - Reusable UI components
+  - `src/views/` - Page-level components and layouts
+  - `src/api/` - API client functions and types
+  - `src/__tests__/` - Comprehensive test suite
+  - `src/assets/` - Static assets and resources
+
+## **Component Patterns**
+- **Use functional components with hooks exclusively**
+- **Export components as default exports**
+- **Use TypeScript interfaces for all props**
+- **Extend HTML element props when appropriate**
+
+```tsx
+// ✅ DO: Proper component structure
+import React from 'react';
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'icon';
+  children: React.ReactNode;
+}
+
+const Button: React.FC<ButtonProps> = ({
+  variant = 'primary',
+  children,
+  className,
+  ...props
+}) => {
+  // Component implementation
+  return <button className={combinedClassName} {...props}>{children}</button>;
+};
+
+export default Button;
+
+// ❌ DON'T: Class components or missing types
+class Button extends React.Component {
+  render() { return <button>{this.props.children}</button>; }
+}
+```
+
+## **TypeScript Patterns**
+- **Use strict TypeScript configuration as defined in [tsconfig.app.json](mdc:frontend/tsconfig.app.json)**
+- **Define interfaces for all props, state, and API responses**
+- **Use proper typing for event handlers and refs**
+- **Leverage type inference where appropriate**
+
+```tsx
+// ✅ DO: Proper TypeScript usage
+interface ImageMetadata {
+  id: string;
+  prompt: string;
+  parameters: Record<string, any> | string | null;
+  filename: string;
+  timestamp: string;
+}
+
+interface GalleryViewProps {
+  onImageSelect?: (image: ImageMetadata) => void;
+}
+
+// ❌ DON'T: Any types or missing interfaces
+const GalleryView = (props: any) => {
+  // Implementation
+};
+```
+
+## **Styling Patterns**
+- **Use the established design system from [theme.css](mdc:frontend/src/theme.css)**
+- **Combine Tailwind classes with CSS custom properties**
+- **Use inline styles for dynamic values and hover states**
+- **Follow the dark theme color palette**
+
+```tsx
+// ✅ DO: Consistent styling approach
+const Button: React.FC<ButtonProps> = ({ variant, isHovered }) => {
+  const style = {
+    backgroundColor: variant === 'primary' 
+      ? isHovered ? '#3366FF' : '#252525'
+      : 'transparent',
+    borderColor: '#333333',
+    color: '#FFFFFF'
+  };
+
+  return (
+    <button 
+      className="font-medium rounded-full transition-all duration-200 border"
+      style={style}
+    >
+      {children}
+    </button>
+  );
+};
+
+// ❌ DON'T: Hardcoded colors or inconsistent patterns
+<button style={{backgroundColor: 'blue', color: 'white'}}>
+```
+
+## **State Management**
+- **Use useState for local component state**
+- **Use useCallback for event handlers to prevent unnecessary re-renders**
+- **Use useRef for DOM references and imperative handles**
+- **Implement proper state lifting patterns**
+
+```tsx
+// ✅ DO: Proper state management
+const [activeView, setActiveView] = useState<string>(() => 
+  pathToView(window.location.pathname)
+);
+
+const navigate = useCallback((view: string) => {
+  const newPath = viewToPath(view);
+  window.history.pushState({ view }, '', newPath);
+  setActiveView(view);
+}, []);
+
+// ❌ DON'T: Inline functions or missing dependencies
+<Button onClick={() => setActiveView('gallery')}>
+```
+
+## **API Integration Patterns**
+- **Use the centralized API client from [api/client.ts](mdc:frontend/src/api/client.ts)**
+- **Implement proper error handling with try-catch**
+- **Use async/await for API calls**
+- **Handle loading and error states appropriately**
+
+```tsx
+// ✅ DO: Proper API integration
+import { fetchImageMetadata, ImageMetadata } from '../api/client';
+
+const [images, setImages] = useState<ImageMetadata[]>([]);
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState<string | null>(null);
+
+const loadImages = useCallback(async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const data = await fetchImageMetadata({ limit: 12 });
+    setImages(data);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to load images');
+  } finally {
+    setLoading(false);
+  }
+}, []);
+
+// ❌ DON'T: Direct fetch calls or missing error handling
+const loadImages = () => {
+  fetch('/api/images').then(res => res.json()).then(setImages);
+};
+```
+
+## **Event Handling**
+- **Use proper TypeScript event types**
+- **Implement controlled components for form inputs**
+- **Use useCallback for event handlers**
+- **Handle both synthetic and native events appropriately**
+
+```tsx
+// ✅ DO: Proper event handling
+const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  // Handle form submission
+}, []);
+
+const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  setValue(e.target.value);
+}, []);
+
+// ❌ DON'T: Untyped events or missing preventDefault
+const handleSubmit = (e) => {
+  // Missing preventDefault and typing
+};
+```
+
+## **Component Composition**
+- **Use children prop for flexible component composition**
+- **Implement render props or custom hooks for complex logic**
+- **Use forwardRef for components that need DOM access**
+- **Follow the compound component pattern where appropriate**
+
+```tsx
+// ✅ DO: Flexible component composition
+interface CardProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+const Card: React.FC<CardProps> = ({ children, className }) => (
+  <div className={`bg-dark-surface rounded-ui-md p-md ${className || ''}`}>
+    {children}
+  </div>
+);
+
+// ❌ DON'T: Rigid component structures
+const Card = ({ title, content, footer }) => (
+  <div>
+    <h3>{title}</h3>
+    <p>{content}</p>
+    <div>{footer}</div>
+  </div>
+);
+```
+
+## **Form Handling**
+- **Use controlled components for all form inputs**
+- **Implement proper validation with error states**
+- **Use FormData for file uploads**
+- **Handle form submission with proper error handling**
+
+```tsx
+// ✅ DO: Controlled form components
+const [prompt, setPrompt] = useState('');
+const [error, setError] = useState<string | null>(null);
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!prompt.trim()) {
+    setError('Prompt is required');
+    return;
+  }
+  // Handle submission
+};
+
+<TextInput
+  value={prompt}
+  onChange={(e) => setPrompt(e.target.value)}
+  error={error}
+  label="Image Prompt"
+/>
+```
+
+## **Testing Requirements**
+- **Write comprehensive tests using Vitest and React Testing Library**
+- **Test component rendering, user interactions, and error states**
+- **Mock API calls and external dependencies**
+- **Follow the existing test patterns in [__tests__/](mdc:frontend/src/__tests__)**
+
+```tsx
+// ✅ DO: Comprehensive component testing
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
+import Button from '../Button';
+
+describe('Button', () => {
+  it('renders with correct variant styles', () => {
+    render(<Button variant="primary">Click me</Button>);
+    expect(screen.getByRole('button')).toHaveClass('bg-dark-button');
+  });
+
+  it('handles click events', async () => {
+    const handleClick = vi.fn();
+    render(<Button onClick={handleClick}>Click me</Button>);
+    
+    fireEvent.click(screen.getByRole('button'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+});
+```
+
+## **Performance Optimization**
+- **Use React.memo for expensive components**
+- **Implement useCallback and useMemo appropriately**
+- **Avoid unnecessary re-renders with proper dependency arrays**
+- **Use lazy loading for large components or routes**
+
+```tsx
+// ✅ DO: Performance optimizations
+const ExpensiveComponent = React.memo<Props>(({ data, onUpdate }) => {
+  const processedData = useMemo(() => 
+    data.map(item => expensiveTransform(item)), [data]
+  );
+
+  const handleUpdate = useCallback((id: string) => {
+    onUpdate(id);
+  }, [onUpdate]);
+
+  return <div>{/* Component content */}</div>;
+});
+
+// ❌ DON'T: Unnecessary re-renders
+const Component = ({ data, onUpdate }) => {
+  const processedData = data.map(item => expensiveTransform(item)); // Runs every render
+  return <div onClick={() => onUpdate('id')}>{/* Content */}</div>;
+};
+```
+
+## **Accessibility**
+- **Use semantic HTML elements**
+- **Include proper ARIA labels and roles**
+- **Ensure keyboard navigation support**
+- **Maintain proper color contrast ratios**
+
+```tsx
+// ✅ DO: Accessible components
+<button
+  aria-label={`Generate image with prompt: ${prompt}`}
+  disabled={loading}
+  type="submit"
+>
+  {loading ? 'Generating...' : 'Generate Image'}
+</button>
+
+// ❌ DON'T: Missing accessibility features
+<div onClick={handleClick}>Click me</div>
+```
+
+## **Error Boundaries**
+- **Implement error boundaries for critical sections**
+- **Provide meaningful error messages to users**
+- **Log errors for debugging purposes**
+- **Gracefully degrade functionality when possible**
+
+## **Code Organization**
+- **Keep components focused and single-purpose**
+- **Extract custom hooks for reusable logic**
+- **Use consistent naming conventions**
+- **Group related functionality together**
+
+## **Build and Development**
+- **Follow the Vite configuration in [vite.config.ts](mdc:frontend/vite.config.ts)**
+- **Use the established ESLint rules from [eslint.config.js](mdc:frontend/eslint.config.js)**
+- **Maintain 100% test coverage as configured in [vitest.config.ts](mdc:frontend/vitest.config.ts)**
+- **Use environment variables with `import.meta.env` prefix**

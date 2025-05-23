@@ -1,0 +1,350 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Styling and Design System Patterns
+
+## **Design System Foundation**
+- **Use the established dark theme from [theme.css](mdc:frontend/src/theme.css)**
+- **Follow the CSS custom properties pattern for consistent theming**
+- **Combine Tailwind CSS with custom CSS variables for maximum flexibility**
+- **Maintain the modern AI interface aesthetic**
+
+## **Color System**
+- **Use CSS custom properties for all colors**
+- **Follow the established dark color palette**
+- **Ensure proper contrast ratios for accessibility**
+
+```css
+/* ✅ DO: Use established color system */
+:root {
+  /* Core colors */
+  --dark-bg: #121212;
+  --dark-surface: #1E1E1E;
+  --dark-surface-elevated: #252525;
+  --dark-border: #333333;
+  --dark-text-primary: #FFFFFF;
+  --dark-text-secondary: #DDDDDD;
+  --dark-text-muted: #999999;
+  --dark-accent: #3366FF;
+  
+  /* UI-specific colors */
+  --dark-input-bg: #1E1E1E;
+  --dark-button-bg: #252525;
+  --dark-toggle-active: #3366FF;
+  --dark-toggle-inactive: #444444;
+}
+
+/* ❌ DON'T: Hardcode colors */
+.button {
+  background-color: #252525; /* Use var(--dark-button-bg) instead */
+  color: white; /* Use var(--dark-text-primary) instead */
+}
+```
+
+## **Component Styling Patterns**
+
+### **Hybrid Styling Approach**
+- **Use Tailwind classes for static styles**
+- **Use inline styles for dynamic values and hover states**
+- **Combine both approaches for maximum compatibility**
+
+```tsx
+// ✅ DO: Hybrid styling approach
+const Button: React.FC<ButtonProps> = ({ variant, isHovered }) => {
+  const dynamicStyle = {
+    backgroundColor: variant === 'primary' 
+      ? isHovered ? 'var(--dark-accent)' : 'var(--dark-button-bg)'
+      : 'transparent',
+    borderColor: 'var(--dark-border)',
+    color: 'var(--dark-text-primary)'
+  };
+
+  return (
+    <button 
+      className="font-medium rounded-full transition-all duration-200 border px-4 py-2"
+      style={dynamicStyle}
+    >
+      {children}
+    </button>
+  );
+};
+
+// ❌ DON'T: Inconsistent styling approaches
+const Button = () => (
+  <button style={{backgroundColor: 'blue', padding: '8px 16px'}}>
+    Click me
+  </button>
+);
+```
+
+### **Responsive Design Patterns**
+- **Use Tailwind's responsive prefixes consistently**
+- **Design mobile-first, then enhance for larger screens**
+- **Test on multiple screen sizes**
+
+```tsx
+// ✅ DO: Responsive design
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+  <div className="p-4 md:p-6 text-sm md:text-base">
+    Content
+  </div>
+</div>
+
+// ❌ DON'T: Fixed layouts
+<div className="grid grid-cols-3 gap-6">
+  <div className="p-6">Content</div>
+</div>
+```
+
+## **Spacing System**
+- **Use the established spacing scale from CSS custom properties**
+- **Prefer Tailwind spacing classes when possible**
+- **Use consistent spacing throughout the application**
+
+```css
+/* ✅ DO: Use established spacing system */
+:root {
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 20px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+  --space-xxl: 64px;
+}
+```
+
+```tsx
+// ✅ DO: Consistent spacing usage
+<div className="p-md mb-lg"> {/* Using Tailwind with custom spacing */}
+  <div style={{ marginBottom: 'var(--space-md)' }}> {/* Using CSS variables */}
+    Content
+  </div>
+</div>
+
+// ❌ DON'T: Arbitrary spacing values
+<div style={{ padding: '15px', marginBottom: '25px' }}>
+  Content
+</div>
+```
+
+## **Typography Patterns**
+- **Use the established font family hierarchy**
+- **Maintain consistent text sizing and line heights**
+- **Follow accessibility guidelines for text contrast**
+
+```tsx
+// ✅ DO: Consistent typography
+<h1 className="text-4xl font-bold text-white mb-8">
+  Main Heading
+</h1>
+<p className="text-gray-200 text-base leading-relaxed">
+  Body text content
+</p>
+<span className="text-gray-500 text-sm">
+  Secondary text
+</span>
+
+// ❌ DON'T: Inconsistent typography
+<h1 style={{fontSize: '32px', fontWeight: 'bold'}}>
+  Heading
+</h1>
+```
+
+## **Interactive States**
+- **Implement consistent hover, focus, and active states**
+- **Use smooth transitions for state changes**
+- **Provide visual feedback for user interactions**
+
+```tsx
+// ✅ DO: Comprehensive interactive states
+const [isHovered, setIsHovered] = useState(false);
+const [isFocused, setIsFocused] = useState(false);
+
+const buttonStyle = {
+  backgroundColor: isHovered 
+    ? 'var(--dark-accent)' 
+    : 'var(--dark-button-bg)',
+  transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+  boxShadow: isFocused 
+    ? '0 0 0 2px var(--dark-accent)' 
+    : 'none',
+  transition: 'all 0.2s ease-in-out'
+};
+
+<button
+  className="rounded-full border border-gray-700 px-4 py-2"
+  style={buttonStyle}
+  onMouseEnter={() => setIsHovered(true)}
+  onMouseLeave={() => setIsHovered(false)}
+  onFocus={() => setIsFocused(true)}
+  onBlur={() => setIsFocused(false)}
+>
+  Interactive Button
+</button>
+
+// ❌ DON'T: Missing interactive states
+<button className="bg-gray-800 text-white px-4 py-2">
+  Static Button
+</button>
+```
+
+## **Animation and Transitions**
+- **Use consistent transition durations (200ms for most interactions)**
+- **Implement smooth animations for state changes**
+- **Use CSS custom properties for animation values**
+
+```css
+/* ✅ DO: Consistent animations */
+.ui-transition {
+  transition: all 0.2s ease-in-out;
+}
+
+.ui-hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ui-spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* ❌ DON'T: Inconsistent or jarring animations */
+.button {
+  transition: background-color 0.5s ease; /* Too slow */
+}
+```
+
+## **Form Styling Patterns**
+- **Use consistent form input styling**
+- **Implement proper error and validation states**
+- **Ensure form accessibility**
+
+```tsx
+// ✅ DO: Consistent form styling
+const TextInput: React.FC<TextInputProps> = ({ error, ...props }) => {
+  const inputStyle = {
+    backgroundColor: 'var(--dark-input-bg)',
+    color: 'var(--dark-text-primary)',
+    borderColor: error ? '#E53E3E' : 'var(--dark-border)',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderRadius: 'var(--radius-pill)',
+    padding: '0.5rem 1rem'
+  };
+
+  return (
+    <div className="mb-5">
+      <input
+        className="w-full focus:outline-none transition-all duration-200"
+        style={inputStyle}
+        {...props}
+      />
+      {error && (
+        <p className="mt-1 text-sm text-red-500">{error}</p>
+      )}
+    </div>
+  );
+};
+```
+
+## **Layout Patterns**
+- **Use CSS Grid and Flexbox appropriately**
+- **Implement consistent container patterns**
+- **Follow the established page layout structure**
+
+```tsx
+// ✅ DO: Consistent layout patterns
+<div className="min-h-screen bg-black text-gray-200 font-sans">
+  <div className="page-container flex flex-col min-h-screen max-w-7xl mx-auto px-8">
+    <header className="mb-12 pb-6 border-b border-gray-800">
+      {/* Header content */}
+    </header>
+    
+    <main className="flex-grow">
+      {/* Main content */}
+    </main>
+    
+    <footer className="mt-16 pt-6 border-t border-gray-800 text-center text-gray-500 text-sm">
+      {/* Footer content */}
+    </footer>
+  </div>
+</div>
+
+// ❌ DON'T: Inconsistent layout structure
+<div>
+  <div style={{padding: '20px'}}>
+    Content
+  </div>
+</div>
+```
+
+## **Component Variants**
+- **Implement consistent variant patterns across components**
+- **Use TypeScript unions for variant types**
+- **Provide clear visual distinctions between variants**
+
+```tsx
+// ✅ DO: Consistent variant system
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'icon';
+
+const getVariantStyles = (variant: ButtonVariant) => {
+  const baseClasses = 'font-medium rounded-full transition-all duration-200 border';
+  
+  const variantClasses = {
+    primary: 'bg-dark-button text-white border-dark-border',
+    secondary: 'bg-dark-surface text-gray-200 border-dark-border',
+    outline: 'bg-transparent text-gray-200 border-dark-border',
+    icon: 'bg-transparent text-gray-200 border-dark-border p-2 flex items-center justify-center'
+  };
+  
+  return `${baseClasses} ${variantClasses[variant]}`;
+};
+```
+
+## **Accessibility Considerations**
+- **Ensure sufficient color contrast ratios**
+- **Provide focus indicators for keyboard navigation**
+- **Use semantic HTML elements**
+- **Include proper ARIA labels**
+
+```tsx
+// ✅ DO: Accessible styling
+<button
+  className="focus:ring-2 focus:ring-blue-500 focus:outline-none"
+  aria-label="Generate new image"
+  style={{
+    backgroundColor: 'var(--dark-button-bg)',
+    color: 'var(--dark-text-primary)', // Ensures proper contrast
+    border: '1px solid var(--dark-border)'
+  }}
+>
+  Generate
+</button>
+
+// ❌ DON'T: Poor accessibility
+<div 
+  onClick={handleClick}
+  style={{backgroundColor: '#333', color: '#666'}} // Poor contrast
+>
+  Clickable div
+</div>
+```
+
+## **Performance Considerations**
+- **Minimize CSS bundle size**
+- **Use CSS custom properties for dynamic theming**
+- **Avoid inline styles for static values**
+- **Optimize for CSS-in-JS performance**
+
+## **Maintenance Guidelines**
+- **Keep the design system documented and up-to-date**
+- **Use consistent naming conventions for CSS classes and variables**
+- **Regularly audit for unused styles**
+- **Maintain backwards compatibility when updating the design system**

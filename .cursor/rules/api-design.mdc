@@ -1,0 +1,354 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# API Design Patterns and Conventions
+
+## **RESTful API Design Principles**
+- **Use consistent HTTP methods:** GET for retrieval, POST for creation, PUT for updates, DELETE for removal
+- **Follow RESTful URL patterns:** `/api/resource` for collections, `/api/resource/{id}` for specific items
+- **Use appropriate HTTP status codes:** 200 for success, 201 for creation, 400 for client errors, 500 for server errors
+- **Include proper error responses with meaningful messages**
+
+## **Backend API Patterns (FastAPI)**
+
+### **Route Organization**
+- **Group related endpoints in separate router files**
+- **Use consistent URL prefixes:** `/api/generate`, `/api/edit`, `/api/images`
+- **Include proper tags for OpenAPI documentation**
+- **Use descriptive function names for route handlers**
+
+```python
+# ✅ DO: Well-organized route structure
+from fastapi import APIRouter, HTTPException, Body
+from ..schemas import GenerateImageRequest
+from ..models.image_metadata import ImageMetadata
+
+router = APIRouter()
+
+@router.post("/", response_model=ImageMetadata, tags=["Generation"])
+async def handle_generate_image(request: GenerateImageRequest = Body(...)):
+    """Generate a new image based on the provided prompt."""
+    # Implementation
+    
+@router.get("/status/{task_id}", tags=["Generation"])
+async def get_generation_status(task_id: str):
+    """Get the status of an image generation task."""
+    # Implementation
+```
+
+### **Request/Response Schema Patterns**
+- **Use Pydantic models for all request and response schemas**
+- **Separate request models from response models**
+- **Include proper validation and field descriptions**
+- **Use consistent naming conventions**
+
+```python
+# ✅ DO: Well-defined schemas
+from pydantic import BaseModel, Field
+from typing import Optional, Literal
+
+class GenerateImageRequest(BaseModel):
+    """Request model for image generation."""
+    prompt: str = Field(..., min_length=1, max_length=1000, description="Text prompt for image generation")
+    size: Literal["256x256", "512x512", "1024x1024"] = Field(default="1024x1024", description="Image dimensions")
+    quality: Literal["auto", "hd"] = Field(default="auto", description="Image quality setting")
+    n: int = Field(default=1, ge=1, le=4, description="Number of images to generate")
+
+class ImageGenerationResponse(BaseModel):
+    """Response model for successful image generation."""
+    id: str = Field(..., description="Unique identifier for the generated image")
+    prompt: str = Field(..., description="Original prompt used for generation")
+    revised_prompt: Optional[str] = Field(None, description="AI-revised version of the prompt")
+    filename: str = Field(..., description="Generated image filename")
+    timestamp: str = Field(..., description="Generation timestamp in ISO format")
+    parameters: dict = Field(..., description="Generation parameters used")
+
+# ❌ DON'T: Unvalidated or poorly structured schemas
+class GenerateRequest(BaseModel):
+    prompt: str  # No validation or description
+    options: dict  # Vague, untyped field
+```
+
+### **Error Handling Patterns**
+- **Use HTTPException with appropriate status codes**
+- **Provide consistent error response format**
+- **Include helpful error messages for debugging**
+- **Log errors appropriately**
+
+```python
+# ✅ DO: Consistent error handling
+from fastapi import HTTPException
+import logging
+
+logger = logging.getLogger(__name__)
+
+class APIError(BaseModel):
+    """Standard API error response."""
+    error: str = Field(..., description="Error type")
+    message: str = Field(..., description="Human-readable error message")
+    details: Optional[dict] = Field(None, description="Additional error details")
+
+@router.post("/generate")
+async def generate_image(request: GenerateImageRequest):
+    try:
+        # Business logic
+        return result
+    except ValidationError as e:
+        logger.warning(f"Validation error: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "validation_error",
+                "message": "Invalid request parameters",
+                "details": e.errors()
+            }
+        )
+    except ExternalAPIError as e:
+        logger.error(f"External API error: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "external_service_error",
+                "message": "Failed to communicate with external service"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "internal_error",
+                "message": "An unexpected error occurred"
+            }
+        )
+```
+
+### **Validation Patterns**
+- **Use Pydantic validators for complex validation logic**
+- **Implement custom validation functions in [validators.py](mdc:backend/app/schemas/validators.py)**
+- **Provide clear validation error messages**
+
+```python
+# ✅ DO: Comprehensive validation
+from pydantic import BaseModel, Field, validator
+from ..schemas.validators import validate_model_size, validate_model_quality
+
+class GptImage1GenerationParams(BaseModel):
+    """Parameters specific to gpt-image-1 model."""
+    size: str = Field(..., description="Image size")
+    quality: str = Field(default="auto", description="Image quality")
+    n: int = Field(default=1, ge=1, le=4, description="Number of images")
+    
+    @validator('size')
+    def validate_size(cls, v):
+        return validate_model_size(v, model="gpt-image-1")
+    
+    @validator('quality')
+    def validate_quality(cls, v):
+        return validate_model_quality(v, model="gpt-image-1")
+```
+
+## **Frontend API Client Patterns**
+
+### **API Client Organization**
+- **Centralize API configuration in [axiosConfig.ts](mdc:frontend/src/api/axiosConfig.ts)**
+- **Group related API calls in separate modules**
+- **Use consistent naming conventions for API functions**
+- **Implement proper TypeScript interfaces for all API responses**
+
+```typescript
+// ✅ DO: Well-organized API client
+// api/imageGeneration.ts
+import { apiClient } from './axiosSetup';
+
+export interface GenerateImageRequest {
+  prompt: string;
+  size?: '256x256' | '512x512' | '1024x1024';
+  quality?: 'auto' | 'hd';
+  n?: number;
+}
+
+export interface ImageMetadata {
+  id: string;
+  prompt: string;
+  revised_prompt?: string;
+  filename: string;
+  timestamp: string;
+  parameters: Record<string, any>;
+}
+
+export const generateImage = async (request: GenerateImageRequest): Promise<ImageMetadata> => {
+  try {
+    const response = await apiClient.post<ImageMetadata>('/api/generate/', request);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to generate image:', error);
+    throw new Error(error.response?.data?.message || 'Failed to generate image');
+  }
+};
+
+export const getImageMetadata = async (imageId: string): Promise<ImageMetadata> => {
+  try {
+    const response = await apiClient.get<ImageMetadata>(`/api/images/${imageId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch image metadata:', error);
+    throw new Error(error.response?.data?.message || 'Failed to fetch image metadata');
+  }
+};
+```
+
+### **Error Handling in Frontend**
+- **Implement consistent error handling across all API calls**
+- **Use axios interceptors for global error handling**
+- **Provide user-friendly error messages**
+- **Implement retry logic for transient failures**
+
+```typescript
+// ✅ DO: Robust error handling
+import axios, { AxiosError } from 'axios';
+import axiosRetry from 'axios-retry';
+
+// Configure retry logic
+axiosRetry(apiClient, {
+  retries: 3,
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) => {
+    return axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+           error.response?.status === 429; // Rate limiting
+  }
+});
+
+// Global error interceptor
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    const message = error.response?.data?.message || 'An unexpected error occurred';
+    
+    // Log error for debugging
+    console.error('API Error:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      message
+    });
+    
+    // Transform error for consistent handling
+    throw new Error(message);
+  }
+);
+```
+
+### **Type Safety Patterns**
+- **Define TypeScript interfaces for all API requests and responses**
+- **Use generic types for reusable API patterns**
+- **Implement proper type guards for runtime validation**
+
+```typescript
+// ✅ DO: Type-safe API patterns
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  timestamp: string;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface FetchImagesParams {
+  limit?: number;
+  offset?: number;
+  sort?: 'newest' | 'oldest';
+}
+
+// Generic API function with proper typing
+export const fetchPaginated = async <T>(
+  endpoint: string,
+  params: Record<string, any> = {}
+): Promise<PaginatedResponse<T>> => {
+  const response = await apiClient.get<PaginatedResponse<T>>(endpoint, { params });
+  return response.data;
+};
+
+// Type guard for runtime validation
+export const isImageMetadata = (obj: any): obj is ImageMetadata => {
+  return obj &&
+    typeof obj.id === 'string' &&
+    typeof obj.prompt === 'string' &&
+    typeof obj.filename === 'string' &&
+    typeof obj.timestamp === 'string';
+};
+```
+
+## **API Documentation Patterns**
+- **Use FastAPI's automatic OpenAPI generation**
+- **Include comprehensive docstrings for all endpoints**
+- **Provide example requests and responses**
+- **Document error scenarios and status codes**
+
+```python
+# ✅ DO: Well-documented API endpoints
+@router.post(
+    "/",
+    response_model=ImageMetadata,
+    status_code=201,
+    summary="Generate a new image",
+    description="Generate a new image using AI based on the provided text prompt",
+    responses={
+        201: {"description": "Image generated successfully"},
+        400: {"description": "Invalid request parameters"},
+        429: {"description": "Rate limit exceeded"},
+        500: {"description": "Internal server error"}
+    }
+)
+async def handle_generate_image(
+    request: GenerateImageRequest = Body(
+        ...,
+        example={
+            "prompt": "A beautiful sunset over mountains",
+            "size": "1024x1024",
+            "quality": "hd",
+            "n": 1
+        }
+    )
+):
+    """
+    Generate a new image based on the provided prompt.
+    
+    Args:
+        request: Image generation parameters including prompt, size, quality, and count
+        
+    Returns:
+        ImageMetadata: Metadata for the generated image including ID, filename, and parameters
+        
+    Raises:
+        HTTPException: 400 if request parameters are invalid
+        HTTPException: 429 if rate limit is exceeded
+        HTTPException: 500 if generation fails
+    """
+    # Implementation
+```
+
+## **Versioning and Compatibility**
+- **Use URL versioning for breaking changes:** `/api/v1/generate`
+- **Maintain backward compatibility when possible**
+- **Document API changes and deprecations**
+- **Use semantic versioning for API releases**
+
+## **Security Patterns**
+- **Validate all input parameters**
+- **Implement rate limiting for resource-intensive endpoints**
+- **Use CORS configuration appropriately**
+- **Sanitize error messages to avoid information leakage**
+
+## **Performance Considerations**
+- **Implement pagination for large datasets**
+- **Use appropriate caching strategies**
+- **Optimize database queries**
+- **Consider async processing for long-running operations**

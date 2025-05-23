@@ -1,0 +1,328 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Structure and Organization Patterns
+
+## **Overall Architecture**
+- **Follow the established monorepo structure with separate frontend and backend**
+- **Maintain clear separation of concerns between layers**
+- **Use consistent naming conventions across the entire project**
+- **Keep related functionality grouped together**
+
+## **Directory Structure Standards**
+
+### **Root Level Organization**
+```
+image-gen-gallery/
+├── backend/           # FastAPI backend application
+├── frontend/          # React frontend application  
+├── scripts/           # Shared scripts and utilities
+├── .cursor/           # Cursor IDE configuration and rules
+├── .env.example       # Environment variable template
+├── .gitignore         # Git ignore patterns
+├── README.md          # Project documentation
+└── package.json       # Root package.json for workspace management
+```
+
+### **Backend Structure (`backend/`)**
+```
+backend/
+├── app/
+│   ├── core/          # Core configuration and utilities
+│   │   ├── __init__.py
+│   │   ├── settings.py      # Centralized configuration
+│   │   └── logging.py       # Logging configuration
+│   ├── models/        # Pydantic data models
+│   │   ├── __init__.py
+│   │   └── image_metadata.py
+│   ├── schemas/       # Request/response schemas and validation
+│   │   ├── __init__.py
+│   │   ├── openai_params.py
+│   │   └── validators.py
+│   ├── services/      # Business logic and external integrations
+│   │   ├── __init__.py
+│   │   ├── openai_service.py
+│   │   ├── image_service.py
+│   │   └── storage_service.py
+│   ├── routes/        # FastAPI route handlers
+│   │   ├── __init__.py
+│   │   ├── generation_routes.py
+│   │   ├── editing_routes.py
+│   │   └── image_routes.py
+│   ├── main.py        # FastAPI application entry point
+│   └── config.py      # Legacy configuration (if needed)
+├── tests/             # Comprehensive test suite
+│   ├── conftest.py    # Pytest configuration and fixtures
+│   ├── test_*.py      # Test modules
+│   └── __init__.py
+├── local_storage/     # Runtime storage (created automatically)
+├── requirements.txt   # Production dependencies
+├── requirements-dev.txt # Development dependencies
+└── .coveragerc        # Coverage configuration
+```
+
+### **Frontend Structure (`frontend/`)**
+```
+frontend/
+├── public/            # Static assets
+├── src/
+│   ├── components/    # Reusable UI components
+│   │   ├── Button.tsx
+│   │   ├── TextInput.tsx
+│   │   ├── Card.tsx
+│   │   └── ...
+│   ├── views/         # Page-level components
+│   │   ├── EditImageView.tsx
+│   │   └── ...
+│   ├── api/           # API client functions
+│   │   ├── client.ts
+│   │   ├── axiosSetup.ts
+│   │   ├── imageGeneration.ts
+│   │   └── imageEditing.ts
+│   ├── assets/        # Images, icons, etc.
+│   ├── __tests__/     # Test files
+│   │   ├── *.test.tsx
+│   │   └── *.test.ts
+│   ├── App.tsx        # Main application component
+│   ├── main.tsx       # Application entry point
+│   ├── index.css      # Global styles
+│   ├── theme.css      # Design system variables
+│   └── vite-env.d.ts  # Vite type definitions
+├── package.json       # Dependencies and scripts
+├── tsconfig.json      # TypeScript configuration
+├── tsconfig.app.json  # App-specific TypeScript config
+├── tsconfig.node.json # Node-specific TypeScript config
+├── vite.config.ts     # Vite build configuration
+├── vitest.config.ts   # Vitest test configuration
+├── vitest.setup.ts    # Test setup
+├── tailwind.config.js # Tailwind CSS configuration
+└── eslint.config.js   # ESLint configuration
+```
+
+## **File Naming Conventions**
+
+### **Backend (Python)**
+- **Use snake_case for all Python files and directories**
+- **Use descriptive names that indicate purpose:** `openai_service.py`, `image_metadata.py`
+- **Prefix test files with `test_`:** `test_generate_route.py`
+- **Use `__init__.py` files to make packages importable**
+
+```python
+# ✅ DO: Proper Python naming
+backend/app/services/openai_service.py
+backend/app/models/image_metadata.py
+backend/tests/test_generation_routes.py
+
+# ❌ DON'T: Inconsistent naming
+backend/app/services/OpenAIService.py
+backend/app/models/ImageMetadata.py
+backend/tests/GenerationRoutes.test.py
+```
+
+### **Frontend (TypeScript/React)**
+- **Use PascalCase for React components:** `Button.tsx`, `ImageCard.tsx`
+- **Use camelCase for utilities and non-component files:** `axiosSetup.ts`, `imageGeneration.ts`
+- **Use descriptive names that indicate component purpose**
+- **Suffix test files with `.test.tsx` or `.test.ts`**
+
+```typescript
+// ✅ DO: Proper TypeScript/React naming
+frontend/src/components/Button.tsx
+frontend/src/components/ImageGenerationForm.tsx
+frontend/src/api/imageGeneration.ts
+frontend/src/__tests__/Button.test.tsx
+
+// ❌ DON'T: Mixed import styles
+import Button from '../components/Button';
+import React from 'react';
+import { ImageMetadata } from '../api/client';
+import axios from 'axios';
+```
+
+## **Import Organization Patterns**
+
+### **Backend Import Order**
+1. **Standard library imports**
+2. **Third-party library imports**
+3. **Local application imports (using relative imports)**
+
+```python
+# ✅ DO: Proper import organization
+import logging
+import uuid
+from datetime import datetime
+from typing import Optional, List
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from ..core.settings import settings
+from ..models.image_metadata import ImageMetadata
+from ..services import openai_service
+
+# ❌ DON'T: Mixed import styles
+from fastapi import *
+import backend.app.services.openai_service
+from datetime import datetime
+import logging
+```
+
+### **Frontend Import Order**
+1. **React and React-related imports**
+2. **Third-party library imports**
+3. **Local component and utility imports**
+4. **Type-only imports (if using TypeScript)**
+
+```typescript
+// ✅ DO: Proper import organization
+import React, { useState, useCallback } from 'react';
+import axios from 'axios';
+
+import Button from '../components/Button';
+import { ImageMetadata } from '../api/client';
+import type { GenerateImageRequest } from '../api/imageGeneration';
+
+// ❌ DON'T: Mixed import styles
+import Button from '../components/Button';
+import React from 'react';
+import { ImageMetadata } from '../api/client';
+import axios from 'axios';
+```
+
+## **Configuration Management**
+
+### **Environment Variables**
+- **Use `.env.example` to document required environment variables**
+- **Keep sensitive data out of version control**
+- **Use consistent naming conventions for environment variables**
+
+```bash
+# ✅ DO: Well-documented environment variables
+# .env.example
+OPENAI_API_KEY=your-openai-api-key-here
+IMAGE_MODEL=gpt-image-1
+STORAGE_DIR=backend/local_storage
+DB_FILENAME=image_metadata.db
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+LOG_LEVEL=INFO
+LOG_FORMAT=plain
+
+# ❌ DON'T: Undocumented or inconsistent variables
+API_KEY=secret
+storage=./storage
+debug=true
+```
+
+### **Configuration Files**
+- **Centralize configuration in dedicated files**
+- **Use appropriate configuration formats (JSON, YAML, etc.)**
+- **Document configuration options**
+
+## **Documentation Standards**
+
+### **Code Documentation**
+- **Include comprehensive docstrings for all public functions and classes**
+- **Use consistent docstring formats (Google style for Python, JSDoc for TypeScript)**
+- **Document complex business logic and algorithms**
+
+```python
+# ✅ DO: Comprehensive documentation
+async def generate_image_from_prompt(
+    prompt: str,
+    model: str = "gpt-image-1",
+    size: str = "1024x1024"
+) -> tuple[Optional[List[str]], Optional[str]]:
+    """
+    Generate an image using OpenAI's API with retry logic.
+
+    Args:
+        prompt: The text prompt for image generation.
+        model: The model to use (e.g., "gpt-image-1", "dall-e-3").
+        size: The desired size of the image (model-specific).
+
+    Returns:
+        A tuple containing:
+            - A list of base64 encoded image data (if successful).
+            - The revised prompt from OpenAI (if provided).
+        Returns (None, None) on failure after retries.
+
+    Raises:
+        RateLimitError: If rate limit is exceeded.
+        APIError: If OpenAI API returns an error.
+    """
+```
+
+### **README Documentation**
+- **Maintain up-to-date README files**
+- **Include setup instructions, usage examples, and troubleshooting**
+- **Document API endpoints and their usage**
+
+## **Version Control Patterns**
+
+### **Git Ignore Patterns**
+- **Exclude build artifacts, dependencies, and sensitive files**
+- **Use appropriate patterns for both frontend and backend**
+
+```gitignore
+# ✅ DO: Comprehensive .gitignore
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+build/
+.vite/
+
+# Environment and secrets
+.env
+.env.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+
+# Runtime files
+backend/local_storage/
+*.log
+```
+
+### **Commit Message Conventions**
+- **Use conventional commit format**
+- **Include scope when appropriate**
+- **Write clear, descriptive commit messages**
+
+```bash
+# ✅ DO: Clear commit messages
+feat(backend): add image generation endpoint
+fix(frontend): resolve button hover state issue
+docs: update API documentation
+test(backend): add tests for OpenAI service
+
+# ❌ DON'T: Vague commit messages
+fix bug
+update code
+changes
+```
+
+## **Dependency Management**
+
+### **Backend Dependencies**
+- **Separate production and development dependencies**
+- **Pin dependency versions for reproducible builds**
+- **Regularly update dependencies for security**
+
+### **Frontend Dependencies**
+- **Use package-lock.json for reproducible builds**
+- **Separate dependencies from devDependencies**
+- **Keep dependencies up-to-date**
+
+## **Build and Deployment Patterns**
+- **Use consistent build scripts across environments**
+- **Implement proper environment-specific configurations**
+- **Document deployment procedures**
+- **Use appropriate CI/CD patterns**
