@@ -1,6 +1,6 @@
 # Image Generation Gallery
 
-A full-stack application for generating, editing, and managing AI-generated images using OpenAI's API. The project features a FastAPI backend and a modern React (Vite + Tailwind) frontend.
+A full-stack application for generating, editing, and managing AI-generated images using OpenAI's API. The project features a FastAPI backend and a modern React (Vite + Tailwind) frontend with TypeScript.
 
 ---
 
@@ -19,18 +19,22 @@ A full-stack application for generating, editing, and managing AI-generated imag
 ---
 
 ## Features
-- Generate images using OpenAI's image models
+- Generate images using OpenAI's image models (DALL-E)
 - Edit images with prompt-based modifications
+- Upload and edit existing images
 - View and manage a gallery of generated images
-- Store image metadata in SQLite
-- Modern, responsive frontend UI
+- Store image metadata in SQLite with async operations
+- Modern, responsive frontend UI with dark theme
+- Comprehensive error handling and retry logic
+- File drag-and-drop functionality
 
 ---
 
 ## Architecture
-- **Backend:** FastAPI, OpenAI API, SQLite, Pydantic, CORS
-- **Frontend:** React 19, Vite, Tailwind CSS, Axios
+- **Backend:** FastAPI, OpenAI API, SQLite (async), Pydantic, CORS, aiofiles
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS 4, Axios with retry logic, react-dropzone
 - **Storage:** Local file storage for images, SQLite for metadata
+- **Testing:** Pytest (backend), Vitest with React Testing Library (frontend)
 
 ---
 
@@ -88,7 +92,7 @@ Create a `.env` file in the project root (or backend root) with the following va
 
 ```
 OPENAI_API_KEY=your-openai-api-key
-IMAGE_MODEL=gpt-image-1
+IMAGE_MODEL=dall-e-3
 STORAGE_DIR=backend/local_storage
 DB_FILENAME=image_metadata.db
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
@@ -174,10 +178,37 @@ pytest --cov=app --cov-report=term-missing
 pytest tests/test_generate_route.py::test_generate_image_ok
 ```
 
-### Frontend
+### Frontend – Vitest + React Testing Library
 
-The React frontend currently has **no** automated test suite. Pull requests
-adding Jest/React-Testing-Library tests are very welcome!
+The React frontend has a comprehensive test suite using Vitest and React Testing Library. Tests cover components, API client functionality, error handling, and user interactions.
+
+**What's covered**
+
+* Component tests for all UI components (Button, Card, ImageCard, etc.)
+* API client tests with axios retry logic
+* App routing and navigation tests
+* Error handling and loading states
+* User interaction flows (image upload, form submission)
+* Utility function tests
+
+**Running the frontend tests**
+
+```bash
+# from the repo root
+cd frontend
+
+# install dependencies (if not already done)
+npm install
+
+# run tests
+npm test --silent
+
+# run tests with coverage
+npm test --coverage
+
+# run tests in watch mode during development
+npm run dev:test
+```
 
 ---
 
@@ -185,15 +216,34 @@ adding Jest/React-Testing-Library tests are very welcome!
 ```
 image-gen-gallery/
 ├── backend/
-│   ├── app/           # FastAPI app code
-│   ├── local_storage/ # Created automatically at runtime for image files and SQLite DB
-│   ├── tests/         # Pytest tests
-│   └── requirements.txt
+│   ├── app/                    # FastAPI app code
+│   │   ├── core/              # Settings, logging, configuration
+│   │   ├── models/            # Database models
+│   │   ├── routes/            # API endpoints (generation, editing, gallery, images)
+│   │   ├── schemas/           # Pydantic schemas and validators
+│   │   ├── services/          # Business logic (image, OpenAI, storage services)
+│   │   └── main.py           # FastAPI application entry point
+│   ├── tests/                 # Comprehensive pytest suite
+│   ├── local_storage/         # Created automatically at runtime for image files and SQLite DB
+│   ├── requirements.txt       # Production dependencies
+│   └── requirements-dev.txt   # Development and testing dependencies
 ├── frontend/
-│   ├── src/           # React app code
-│   ├── public/
-│   └── package.json
-├── .env.example       # Example environment file
+│   ├── src/
+│   │   ├── __tests__/         # Comprehensive Vitest test suite
+│   │   ├── api/              # API client with axios and retry logic
+│   │   ├── components/        # Reusable React components
+│   │   ├── views/            # Page-level components
+│   │   └── main.tsx          # React app entry point
+│   ├── public/               # Static assets
+│   ├── package.json          # Frontend dependencies and scripts
+│   ├── vite.config.ts        # Vite configuration
+│   ├── vitest.config.ts      # Vitest test configuration
+│   ├── tailwind.config.js    # Tailwind CSS configuration
+│   └── tsconfig.json         # TypeScript configuration
+├── scripts/
+│   └── setup_env.sh          # Environment setup script
+├── CLAUDE.md                 # Development guidelines and instructions
+├── AGENTS.md                 # AI agent configuration
 └── README.md
 ```
 
