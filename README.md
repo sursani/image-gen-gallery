@@ -176,8 +176,13 @@ pytest tests/test_generate_route.py::test_generate_image_ok
 
 ### Frontend
 
-The React frontend currently has **no** automated test suite. Pull requests
-adding Jest/React-Testing-Library tests are very welcome!
+A comprehensive set of unit tests lives under `frontend/src/__tests__`.
+The suite uses **Vitest** together with React Testing Library. Run it from the
+`frontend` directory:
+
+```bash
+npm test --silent
+```
 
 ---
 
@@ -191,8 +196,10 @@ image-gen-gallery/
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/           # React app code
+│   ├── src/__tests__/ # Vitest unit tests
 │   ├── public/
 │   └── package.json
+├── scripts/           # Helper scripts (setup_env.sh)
 ├── .env.example       # Example environment file
 └── README.md
 ```
