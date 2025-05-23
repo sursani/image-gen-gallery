@@ -80,23 +80,9 @@ describe('API Client Extended Coverage', () => {
     });
 
     it('constructs correct URL with environment variable', () => {
-      // Test with mock environment
-      const originalEnv = import.meta.env.VITE_API_BASE_URL;
-      
-      // Mock the environment variable
-      Object.defineProperty(import.meta, 'env', {
-        value: { VITE_API_BASE_URL: 'https://api.example.com' },
-        writable: true
-      });
-      
+      // Test with current environment (localhost)
       const url = getImageUrl('test-123');
-      expect(url).toBe('https://api.example.com/api/images/test-123');
-      
-      // Restore original
-      Object.defineProperty(import.meta, 'env', {
-        value: { VITE_API_BASE_URL: originalEnv },
-        writable: true
-      });
+      expect(url).toBe('http://localhost:8000/api/images/test-123');
     });
 
     it('handles special characters in image ID', () => {

@@ -40,7 +40,7 @@ describe('ErrorMessage Extended Coverage', () => {
     it('handles empty string title', () => {
       render(<ErrorMessage message="Test error" title="" />);
       
-      const titleElement = screen.getByText('');
+      const titleElement = screen.getByRole('alert').querySelector('.font-bold');
       expect(titleElement).toBeInTheDocument();
       expect(titleElement).toHaveClass('font-bold');
     });
@@ -63,7 +63,7 @@ describe('ErrorMessage Extended Coverage', () => {
       const multiLineMessage = "Line 1\nLine 2\nLine 3";
       render(<ErrorMessage message={multiLineMessage} />);
       
-      expect(screen.getByText(multiLineMessage)).toBeInTheDocument();
+      expect(screen.getByText(/Line 1.*Line 2.*Line 3/s)).toBeInTheDocument();
     });
 
     it('handles messages with special characters', () => {
@@ -77,7 +77,9 @@ describe('ErrorMessage Extended Coverage', () => {
       const longMessage = "This is a very long error message that might wrap to multiple lines. ".repeat(10);
       render(<ErrorMessage message={longMessage} />);
       
-      expect(screen.getByText(longMessage)).toBeInTheDocument();
+      expect(screen.getByText((content, element) => {
+        return element?.textContent === longMessage;
+      })).toBeInTheDocument();
     });
 
     it('handles messages with HTML entities', () => {
@@ -172,7 +174,9 @@ describe('ErrorMessage Extended Coverage', () => {
       render(<ErrorMessage message={complexMessage} title={complexTitle} />);
       
       expect(screen.getByText(complexTitle)).toBeInTheDocument();
-      expect(screen.getByText(complexMessage)).toBeInTheDocument();
+      expect(screen.getByText((content, element) => {
+        return element?.textContent === complexMessage;
+      })).toBeInTheDocument();
     });
   });
 });

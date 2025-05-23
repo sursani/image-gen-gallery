@@ -221,7 +221,7 @@ describe('Button Extended Coverage', () => {
       
       const button = screen.getByRole('button');
       expect(button.className).not.toContain('undefined');
-      expect(button.className.trim()).not.toEndWith(' ');
+      expect(button.className.trim()).not.toMatch(/ $/);
     });
 
     it('handles null className gracefully', () => {
