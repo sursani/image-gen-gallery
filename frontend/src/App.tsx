@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import './App.css'
 import Button from './components/Button'
-import GalleryView from './components/GalleryView'
+import GalleryView, { GalleryViewRef } from './components/GalleryView'
 import ImageGenerationForm from './components/ImageGenerationForm'
 import EditImageView from './views/EditImageView'
 
@@ -52,7 +52,7 @@ const styles = {
   h1: {
     fontSize: '2.8rem',
     fontWeight: 'bold',
-    textAlign: 'center',
+    textAlign: 'center' as const,
     color: '#FFFFFF',
     marginBottom: '32px'
   },
@@ -70,7 +70,7 @@ const styles = {
     marginTop: '48px',
     paddingTop: '20px',
     borderTop: '1px solid #333333',
-    textAlign: 'center',
+    textAlign: 'center' as const,
     color: '#999999',
     fontSize: '0.875rem'
   }
@@ -78,11 +78,17 @@ const styles = {
 
 function App() {
   const [activeView, setActiveView] = useState<string>(() => pathToView(window.location.pathname))
+  const galleryRef = useRef<GalleryViewRef>(null)
 
   const navigate = useCallback((view: string) => {
     const newPath = viewToPath(view)
     window.history.pushState({ view }, '', newPath)
     setActiveView(view)
+    
+    // Refresh gallery when navigating to it to show latest images
+    if (view === 'gallery' && galleryRef.current) {
+      galleryRef.current.refresh()
+    }
   }, [])
 
   useEffect(() => {
@@ -103,13 +109,13 @@ function App() {
   const renderView = () => {
     switch (activeView) {
       case 'gallery':
-        return <GalleryView />
+        return <GalleryView ref={galleryRef} />
       case 'create':
         return <ImageGenerationForm />
       case 'edit':
-        return <EditImageView />
+        return <EditImageView navigate={navigate} />
       default:
-        return <GalleryView />
+        return <GalleryView ref={galleryRef} />
     }
   }
 
