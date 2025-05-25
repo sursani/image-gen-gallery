@@ -8,7 +8,8 @@ os.environ.setdefault("OPENAI_API_KEY", "test-api-key")
 from backend.app.core.settings import settings
 
 
-def test_config_forwards_settings_values(monkeypatch):
+@pytest.mark.asyncio
+async def test_config_forwards_settings_values(monkeypatch):
     # Patch settings values
     test_api_key = "test-api-key"
     test_origins = ["https://test.com", "http://localhost:3000"]

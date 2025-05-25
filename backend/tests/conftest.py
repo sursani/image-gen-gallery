@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 # dir), so we wrap it inside a fixture.
 
 
-@pytest_asyncio.fixture()
+@pytest_asyncio.fixture(scope="function")
 async def tmp_storage_dir(tmp_path, monkeypatch):
     """Redirect Settings.storage_dir to a unique temporary directory."""
 
@@ -38,7 +38,7 @@ async def tmp_storage_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
-@pytest_asyncio.fixture()
+@pytest_asyncio.fixture(scope="function")
 async def client(tmp_storage_dir):
     """Return a FastAPI TestClient bound to the application."""
 

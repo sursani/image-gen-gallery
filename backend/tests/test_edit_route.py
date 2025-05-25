@@ -39,7 +39,8 @@ def mock_openai_edit(mocker):
     )
 
 
-def test_edit_endpoint_success(client):
+@pytest.mark.asyncio
+async def test_edit_endpoint_success(client):
     png = _png_bytes()
 
     resp = client.post(
@@ -54,7 +55,8 @@ def test_edit_endpoint_success(client):
     assert "filename" in payload
 
 
-def test_edit_endpoint_invalid_size(client):
+@pytest.mark.asyncio
+async def test_edit_endpoint_invalid_size(client):
     png = _png_bytes()
 
     r = client.post(
