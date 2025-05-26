@@ -25,8 +25,13 @@ async def tmp_storage_dir(tmp_path, monkeypatch):
     # 2. Ensure modules that cached the path are updated
     import importlib
     from backend.app.services import openai_service
+    from backend.app.routes import image_routes
 
     openai_service.IMAGE_STORAGE_PATH = (
+        tmp_path / "images"
+    )  # type: ignore[attr-defined]
+    
+    image_routes.IMAGE_STORAGE_PATH = (
         tmp_path / "images"
     )  # type: ignore[attr-defined]
 
