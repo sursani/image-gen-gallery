@@ -27,7 +27,7 @@ vi.mock('../components/ImageEditForm', () => ({
 
 const editMock = vi.fn();
 vi.mock('../api/imageEditing', () => ({
-  editImage: (...args: any[]) => editMock(...args),
+  editImageStream: (...args: any[]) => editMock(...args),
 }));
 
 import EditImageView from '../views/EditImageView';

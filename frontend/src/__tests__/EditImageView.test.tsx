@@ -18,7 +18,7 @@ vi.mock('../components/ImageUploader', () => ({
 
 const editMock = vi.fn();
 vi.mock('../api/imageEditing', () => ({
-  editImage: (...args: any[]) => editMock(...args),
+  editImageStream: (...args: any[]) => editMock(...args),
 }));
 
 // Mock the getImageUrl function
@@ -63,13 +63,8 @@ describe('EditImageView', () => {
   });
 
   it('shows error when mask uploaded before original, then succeeds and displays result', async () => {
-    // Mock response with correct structure (ImageMetadata)
-    editMock.mockResolvedValueOnce({ 
-      id: 'test-image-id',
-      prompt: 'great prompt',
-      parameters: { size: '1024x1024', type: 'edit' },
-      filename: 'edited.png',
-      timestamp: '2023-01-01T00:00:00Z'
+    editMock.mockImplementationOnce(async (_p, _img, _mask, _s, cb) => {
+      cb({ type: 'complete', metadata: { id: 'test-image-id', filename: 'edited.png' } });
     });
     render(<EditImageView />);
 

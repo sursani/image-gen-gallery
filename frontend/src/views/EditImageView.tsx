@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import ImageUploader from '../components/ImageUploader';
 import ImageEditForm from '../components/ImageEditForm';
-import { editImage } from '../api/imageEditing'; // Import the new API function
+import { editImageStream } from '../api/imageEditing';
 import { getImageUrl } from '../api/client'; // Import the getImageUrl function
 import Button from '../components/Button'; // Import Button
 import ErrorMessage from '../components/ErrorMessage'; // Import the new component
@@ -89,17 +89,20 @@ function EditImageView({ navigate }: EditImageViewProps) {
     console.log('Submitting edit request:', { prompt, originalFile, maskFile });
 
     try {
-      const response = await editImage(
+      await editImageStream(
         prompt,
         originalFile,
-        maskFile, // Pass the mask file state
-        selectedSize
+        maskFile,
+        selectedSize,
+        (msg) => {
+          if (msg.type === 'partial') {
+            setEditResultUrl(`data:image/png;base64,${msg.data}`);
+          } else if (msg.type === 'complete' && msg.metadata) {
+            const imageUrl = getImageUrl(msg.metadata.id);
+            setEditResultUrl(imageUrl);
+          }
+        }
       );
-
-      console.log('Image edit successful:', response);
-      // Construct the image URL from the response ID
-      const imageUrl = getImageUrl(response.id);
-      setEditResultUrl(imageUrl);
 
     } catch (error) {
       console.error('Image edit failed:', error);

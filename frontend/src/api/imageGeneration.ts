@@ -38,4 +38,32 @@ export const generateImage = async (requestData: GenerateImageRequest): Promise<
     // Re-throw the error (which should now be an Error with a user-friendly message)
     throw error;
   }
-}; 
+};
+
+export async function generateImageStream(
+  requestData: GenerateImageRequest,
+  onMessage: (data: any) => void
+): Promise<void> {
+  const resp = await fetch(`/api/generate/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestData)
+  });
+
+  const reader = resp.body?.getReader();
+  if (!reader) return;
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (line.startsWith('data:')) {
+        onMessage(JSON.parse(line.slice(5)));
+      }
+    }
+  }
+}

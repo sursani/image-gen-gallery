@@ -55,4 +55,36 @@ export const editImage = async (
     throw error; 
     */
   }
-}; 
+};
+
+export async function editImageStream(
+  prompt: string,
+  imageFile: File,
+  maskFile: File | null,
+  size: string = '1024x1024',
+  onMessage?: (data: any) => void
+): Promise<void> {
+  const formData = new FormData();
+  formData.append('prompt', prompt);
+  formData.append('image', imageFile);
+  formData.append('size', size);
+  if (maskFile) formData.append('mask', maskFile);
+
+  const resp = await fetch(`/api/edit/stream`, { method: 'POST', body: formData });
+  const reader = resp.body?.getReader();
+  if (!reader) return;
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (line.startsWith('data:') && onMessage) {
+        onMessage(JSON.parse(line.slice(5)));
+      }
+    }
+  }
+}

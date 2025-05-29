@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import ImageGenerationForm from '../components/ImageGenerationForm';
 
-// Mock the generateImage API util so we can control its responses
+// Mock the streaming API util so we can control its responses
 const generateMock = vi.fn();
 vi.mock('../api/imageGeneration', () => ({
-  generateImage: (...args: any[]) => generateMock(...args),
+  generateImageStream: (...args: any[]) => generateMock(...args),
 }));
 
 describe('ImageGenerationForm', () => {
@@ -38,7 +38,9 @@ describe('ImageGenerationForm', () => {
   });
 
   it('successfully calls API and displays generated image', async () => {
-    generateMock.mockResolvedValueOnce({ filename: 'abc.png' });
+    generateMock.mockImplementationOnce(async (_req, cb) => {
+      cb({ type: 'complete', metadata: { filename: 'abc.png' } });
+    });
     render(<ImageGenerationForm />);
 
     fireEvent.change(screen.getByLabelText(/describe your image/i), { target: { value: 'A wonderfully descriptive prompt exceeding 10 chars' } });

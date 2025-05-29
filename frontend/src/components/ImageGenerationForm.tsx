@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { generateImage } from '../api/imageGeneration';
+import { generateImageStream } from '../api/imageGeneration';
 
 function ImageGenerationForm() {
   const [formState, setFormState] = useState({
@@ -49,20 +49,30 @@ function ImageGenerationForm() {
     e.preventDefault();
     setApiError(null);
     setImageUrl(null);
-    if (validateForm()) {
-      setIsLoading(true);
-      try {
-        const response = await generateImage({
+    if (!validateForm()) return;
+
+    setIsLoading(true);
+    let b64 = '';
+    try {
+      await generateImageStream(
+        {
           prompt: formState.prompt,
           size: formState.size,
           quality: formState.quality,
-        });
-        setImageUrl(`/api/images/file/${response.filename}`);
-      } catch (error: any) {
-        setApiError(error.message || 'An unknown error occurred generating the image.');
-      } finally {
-        setIsLoading(false);
-      }
+        },
+        (msg) => {
+          if (msg.type === 'partial') {
+            setImageUrl(`data:image/png;base64,${b64}${msg.data}`);
+            b64 += msg.data;
+          } else if (msg.type === 'complete' && msg.metadata) {
+            setImageUrl(`/api/images/file/${msg.metadata.filename}`);
+          }
+        }
+      );
+    } catch (error: any) {
+      setApiError(error.message || 'An unknown error occurred generating the image.');
+    } finally {
+      setIsLoading(false);
     }
   };
 

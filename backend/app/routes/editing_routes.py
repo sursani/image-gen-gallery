@@ -1,9 +1,15 @@
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form, Body, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional
+import json
 import logging
 
-from ..services.openai_service import edit_image_from_prompt, save_image_from_base64
+from ..services.openai_service import (
+    edit_image_from_prompt,
+    save_image_from_base64,
+    edit_image_from_prompt_stream,
+)
 from ..models.image_metadata import ImageMetadata
 from ..schemas import EditImageRequest
 
@@ -127,4 +133,51 @@ async def handle_edit_image(
         raise http_exc
     except Exception as e:
         logger.error(f"Unexpected error handling image edit request: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An unexpected error occurred during image editing.") 
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during image editing.")
+
+
+@router.post("/stream")
+async def stream_edit_image(
+    prompt: str = Form(...),
+    size: str = Form("1024x1024"),
+    quality: str = Form("auto"),
+    n: int = Form(1),
+    image: UploadFile = File(...),
+    mask: Optional[UploadFile] = File(None),
+):
+    """Stream edited image data via SSE."""
+
+    image_bytes = await validate_image_file(image)
+    mask_bytes = await validate_mask_file(mask)
+
+    async def event_generator():
+        accumulated = ""
+        params = {
+            "model": "gpt-image-1",
+            "size": size,
+            "quality": quality,
+            "n": n,
+            "type": "edit",
+            "original_prompt": prompt,
+        }
+
+        async for item in edit_image_from_prompt_stream(
+            prompt=prompt,
+            image_bytes=image_bytes,
+            mask_bytes=mask_bytes,
+            size=size,
+            quality=quality,
+            n=n,
+        ):
+            if item.get("type") == "partial":
+                accumulated += item.get("data", "")
+                yield f"data: {json.dumps({'type': 'partial'})}\n\n"
+            elif item.get("type") == "complete":
+                accumulated += item.get("data", "")
+                saved = await save_image_from_base64([accumulated], prompt, None, params)
+                meta = saved[0] if saved else None
+                payload = {"type": "complete", "metadata": meta.model_dump() if meta else None}
+                yield f"data: {json.dumps(payload)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

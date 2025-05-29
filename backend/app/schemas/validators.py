@@ -34,22 +34,6 @@ def validate_model_n(n: int, info: ValidationInfo) -> int:
     
     return n
 
-def validate_model_style(style: str, info: ValidationInfo) -> str:
-    """Validate that the style is valid for the selected model."""
-    # Get the model value from the input data
-    model = info.data.get("model")
-    if not model or not style:
-        return style  # Missing data, let other validators handle it
-    
-    # Style is only supported for DALL-E 3
-    if model != "dall-e-3" and style:
-        raise ValueError(f"The 'style' parameter is only supported for the 'dall-e-3' model, not '{model}'.")
-    
-    # For DALL-E 3, style must be "vivid" or "natural"
-    if model == "dall-e-3" and style not in ["vivid", "natural"]:
-        raise ValueError(f"Invalid style '{style}' for model 'dall-e-3'. Valid values are: 'vivid', 'natural'.")
-    
-    return style
 
 def get_default_values_for_model(model: str) -> Dict[str, Any]:
     """Get default values for a specific model."""
@@ -57,17 +41,7 @@ def get_default_values_for_model(model: str) -> Dict[str, Any]:
         "gpt-image-1": {
             "quality": "auto",
             "size": "1024x1024",
-            "n": 1
+            "n": 1,
         },
-        "dall-e-3": {
-            "quality": "standard",
-            "size": "1024x1024",
-            "style": "vivid",
-            "n": 1
-        },
-        "dall-e-2": {
-            "size": "1024x1024",
-            "n": 1
-        }
     }
     return defaults.get(model, {}) 
