@@ -1,7 +1,7 @@
 import logging
 import httpx
 import base64
-from openai import OpenAI, AsyncOpenAI, APIError, RateLimitError
+from openai import AsyncOpenAI, APIError, RateLimitError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import asyncio
 import aiofiles
@@ -39,74 +39,46 @@ retry_strategy = retry(
 @retry_strategy
 async def generate_image_from_prompt(
     prompt: str,
-    model: str = "gpt-image-1", # Default to gpt-image-1
-    size: str = "1024x1024", # Default size
-    quality: str = "auto", # Default quality for gpt-image-1
-    n: int = 1, # Default number of images
-    style: str = None # Only for dall-e-3
+    size: str = "1024x1024",
+    quality: str = "auto",
+    n: int = 1,
 ) -> tuple[Optional[List[str]], Optional[str]]:
-    """
-    Generates an image using OpenAI's API with retry logic.
+    """Generate an image using the Responses API.
 
-    Args:
-        prompt: The text prompt for image generation.
-        model: The model to use (e.g., "gpt-image-1", "dall-e-3", "dall-e-2").
-        size: The desired size of the image (model-specific).
-        quality: The quality setting (model-specific).
-        n: The number of images to generate (model-specific).
-        style: The style parameter (only for dall-e-3).
-
-    Returns:
-        A tuple containing:
-            - A list of base64 encoded image data (if successful).
-            - The revised prompt from OpenAI (if provided).
-        Returns (None, None) on failure after retries.
+    Only the ``gpt-image-1`` model is supported.
     """
-    logger.info(f"Requesting image generation for prompt: '{prompt}' with model={model}, size={size}, quality={quality}, n={n}")
+    logger.info(
+        f"Requesting image generation for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
+    )
     try:
-        # Build API parameters based on model
-        api_params = {
-            "model": model,
-            "prompt": prompt,
+        input_items = [
+            {"type": "message", "role": "user", "content": prompt}
+        ]
+        tool = {
+            "type": "image_generation",
+            "model": "gpt-image-1",
             "size": size,
-            "n": n,
+            "quality": quality,
         }
-        
-        # Add model-specific parameters
-        if model == "gpt-image-1" and quality:
-            api_params["quality"] = quality
-        elif model == "dall-e-3":
-            if quality:
-                api_params["quality"] = quality
-            if style:
-                api_params["style"] = style
-            # n is enforced as 1 for DALL-E 3
-            api_params["n"] = 1
-            
-        response = await client.images.generate(**api_params)
-        
-        # Extract base64 data from response (or URL for DALL-E 2/3 if b64_json wasn't specified)
-        image_data_list = []
-        for item in response.data:
-            if hasattr(item, 'b64_json') and item.b64_json:
-                image_data_list.append(item.b64_json)
-            elif hasattr(item, 'url') and item.url:
-                # For models that return URLs instead of base64 data by default
-                # We'll need to download the image
-                async with httpx.AsyncClient(timeout=30.0) as http_client:
-                    img_response = await http_client.get(item.url)
-                    if img_response.status_code == 200:
-                        # Convert to base64
-                        image_data = base64.b64encode(img_response.content).decode('utf-8')
-                        image_data_list.append(image_data)
-        
-        revised_prompt = response.data[0].revised_prompt if response.data and hasattr(response.data[0], 'revised_prompt') else None
-        
-        logger.info(f"Image(s) generated successfully. Number of images: {len(image_data_list)}")
-        if revised_prompt and revised_prompt != prompt:
-             logger.info(f"OpenAI revised prompt: '{revised_prompt}'")
-             
-        return image_data_list, revised_prompt
+
+        response = await client.responses.create(
+            model="gpt-image-1",
+            input=input_items,
+            tools=[tool],
+        )
+
+        image_data_list = [
+            output.result
+            for output in response.output
+            if getattr(output, "type", None) == "image_generation_call"
+            and getattr(output, "result", None)
+        ]
+
+        logger.info(
+            f"Image(s) generated successfully. Number of images: {len(image_data_list)}"
+        )
+
+        return image_data_list, None
 
     except RateLimitError as e:
         logger.warning(f"OpenAI rate limit hit during image generation: {e}. Retrying...")
@@ -129,19 +101,17 @@ async def generate_image_from_prompt(
 async def edit_image_from_prompt(
     prompt: str,
     image_bytes: bytes,
-    model: str = "gpt-image-1", # Default to gpt-image-1
     mask_bytes: Optional[bytes] = None,
-    size: str = "1024x1024", # gpt-image-1 supports various sizes
-    quality: str = "auto", # Default quality for gpt-image-1 (not used in API call)
-    n: int = 1 # Number of output images
-) -> Optional[List[str]]: # Returns list of base64 image data or None
+    size: str = "1024x1024",
+    quality: str = "auto",
+    n: int = 1,
+) -> Optional[List[str]]:
     """
     Edit an image using OpenAI's API with retry logic.
 
     Args:
         prompt: The text prompt describing the desired edit.
         image_bytes: The image data to edit (PNG format).
-        model: The model to use (e.g., "gpt-image-1", "dall-e-2").
         mask_bytes: Optional mask data (PNG format) indicating areas to edit.
         size: The desired size of the edited image.
         quality: The quality setting (kept for compatibility, not used in edit API).
@@ -151,40 +121,45 @@ async def edit_image_from_prompt(
         A list of base64 encoded edited image data, or None on failure after retries.
     """
     logger.info(
-        f"Requesting image edit for prompt: '{prompt}' with model={model}, size={size}, quality={quality}, n={n}")
+        f"Requesting image edit for prompt: '{prompt}' with size={size}, quality={quality}, n={n}")
     try:
-        # Prepare image parameter
-        image_param = ("image.png", image_bytes, "image/png")
-        
-        # Note: response_format parameter is not supported by images.edit API, only by images.generate
-        api_params = {
-            "model": model,
-            "image": image_param,
-            "prompt": prompt,
-            "size": size,
-            "n": n
-        }
-            
-        if mask_bytes:
-            mask_param = ("mask.png", mask_bytes, "image/png")
-            api_params["mask"] = mask_param
-            
-        response = await client.images.edit(**api_params)
+        input_items = [
+            {"type": "message", "role": "user", "content": prompt},
+            {
+                "type": "input_image",
+                "image_url": "data:image/png;base64," + base64.b64encode(image_bytes).decode(),
+                "detail": "auto",
+            },
+        ]
 
-        # Extract base64 data from response
-        image_data_list = []
-        for item in response.data:
-            if hasattr(item, 'b64_json') and item.b64_json:
-                image_data_list.append(item.b64_json)
-            elif hasattr(item, 'url') and item.url:
-                # For models that return URLs instead of base64 data by default
-                # We'll need to download the image
-                async with httpx.AsyncClient(timeout=30.0) as http_client:
-                    img_response = await http_client.get(item.url)
-                    if img_response.status_code == 200:
-                        # Convert to base64
-                        image_data = base64.b64encode(img_response.content).decode('utf-8')
-                        image_data_list.append(image_data)
+        if mask_bytes:
+            input_items.append(
+                {
+                    "type": "input_image",
+                    "image_url": "data:image/png;base64," + base64.b64encode(mask_bytes).decode(),
+                    "detail": "auto",
+                }
+            )
+
+        tool = {
+            "type": "image_generation",
+            "model": "gpt-image-1",
+            "size": size,
+            "quality": quality,
+        }
+
+        response = await client.responses.create(
+            model="gpt-image-1",
+            input=input_items,
+            tools=[tool],
+        )
+
+        image_data_list = [
+            output.result
+            for output in response.output
+            if getattr(output, "type", None) == "image_generation_call"
+            and getattr(output, "result", None)
+        ]
 
         logger.info(
             f"Image(s) edited successfully. Number of images: {len(image_data_list)}"
