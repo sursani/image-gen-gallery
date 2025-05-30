@@ -33,7 +33,7 @@ async def handle_generate_image(request: GenerateImageRequest = Body(...)):
 
         # 2. Save the base64 image data and record metadata
         parameters = {
-            "model": "gpt-image-1",
+            "model": "gpt-4o",
             "size": request.size,
             "quality": request.quality,
             "n": request.n

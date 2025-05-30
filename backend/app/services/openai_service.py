@@ -9,7 +9,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, Tuple, List, Dict, Any, AsyncIterator
 import os
-import io
 
 from ..core.settings import settings
 from ..models.image_metadata import ImageMetadata
@@ -23,6 +22,10 @@ from pathlib import Path
 # Path to the directory where images will be stored (inside the storage
 # dir specified in Settings).
 IMAGE_STORAGE_PATH = Path(settings.storage_dir) / "images"
+
+
+# No additional helpers required – we assume the SDK function is asynchronous
+# and therefore *must* be awaited.  Unit-test stubs should also be async.
 
 # Configure OpenAI client
 # Consider using AsyncOpenAI for FastAPI
@@ -38,62 +41,42 @@ retry_strategy = retry(
 
 async def generate_image_from_prompt_stream(
     prompt: str,
-    size: str = "1024x1024", 
+    size: str = "1024x1024",
     quality: str = "auto",
     n: int = 1,
 ) -> AsyncIterator[Dict[str, Any]]:
-    """Generate an image using the Responses API with streaming.
-    
-    Yields chunks of data as they are received from the API.
-    """
-    logger.info(
-        f"Requesting streaming image generation for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
-    )
-    try:
-        input_items = [
-            {"type": "message", "role": "user", "content": prompt}
-        ]
-        tool = {
-            "type": "image_generation",
-            "model": "gpt-image-1",
-            "size": size,
-            "quality": quality,
-        }
+    """Generate an image and stream intermediary events.
 
-        # Create streaming response
-        stream = await client.responses.create(
-            model="gpt-image-1",
-            input=input_items,
-            tools=[tool],
-            stream=True
+    The official OpenAI Images API does **not** currently support true server-side
+    streaming. Instead, we mimic streaming behaviour by immediately yielding a
+    *start* progress event, awaiting the synchronous image generation call, and
+    finally yielding the generated image data.
+    """
+
+    logger.info(
+        f"Requesting (pseudo-stream) image generation for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
+    )
+
+    # Initial progress event so the client knows the request was accepted.
+    yield {"type": "progress", "data": {"status": "started"}}
+
+    try:
+        image_data_list, _ = await generate_image_from_prompt(
+            prompt=prompt,
+            size=size,
+            quality=quality,
+            n=n,
         )
 
-        # Process stream chunks
-        async for chunk in stream:
-            # For image generation, we'll yield progress updates
-            # The actual structure depends on the API response format
-            if hasattr(chunk, 'choices') and chunk.choices:
-                for choice in chunk.choices:
-                    if hasattr(choice, 'delta'):
-                        yield {
-                            "type": "progress",
-                            "data": choice.delta
-                        }
-            elif hasattr(chunk, 'output'):
-                # Final image data
-                for output in chunk.output:
-                    if getattr(output, "type", None) == "image_generation_call":
-                        yield {
-                            "type": "image",
-                            "data": output.result
-                        }
+        if not image_data_list:
+            raise RuntimeError("OpenAI image generation returned no data")
+
+        # Yield the first image (only one currently generated)
+        yield {"type": "image", "data": image_data_list[0]}
 
     except Exception as e:
         logger.error(f"Error in streaming image generation: {e}")
-        yield {
-            "type": "error",
-            "error": str(e)
-        }
+        yield {"type": "error", "error": str(e)}
 
 @retry_strategy
 async def generate_image_from_prompt(
@@ -104,34 +87,33 @@ async def generate_image_from_prompt(
 ) -> tuple[Optional[List[str]], Optional[str]]:
     """Generate an image using the Responses API.
 
-    Only the ``gpt-image-1`` model is supported.
+    Uses the ``gpt-4o`` model with the hosted ``image_generation`` tool.
     """
     logger.info(
         f"Requesting image generation for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
     )
     try:
-        input_items = [
-            {"type": "message", "role": "user", "content": prompt}
-        ]
-        tool = {
-            "type": "image_generation",
-            "model": "gpt-image-1",
-            "size": size,
-            "quality": quality,
-        }
+        # ---------------- Use OpenAI Responses API ----------------
 
-        response = await client.responses.create(
-            model="gpt-image-1",
-            input=input_items,
-            tools=[tool],
-        )
+        def _build_args() -> dict:
+            return dict(
+                model="gpt-4o",
+                input=[{"type": "message", "role": "user", "content": prompt}],
+                tools=[{
+                    "type": "image_generation",
+                    "size": size,
+                }],
+            )
 
-        image_data_list = [
-            output.result
-            for output in response.output
-            if getattr(output, "type", None) == "image_generation_call"
-            and getattr(output, "result", None)
-        ]
+        response = await client.responses.create(**_build_args())
+        # Handle both SDK and legacy responses mock structure
+        # The Responses API returns `output`, each with `.result` (base-64)
+        if hasattr(response, "output"):
+            image_data_list = [
+                item.result for item in response.output if getattr(item, "result", None)
+            ]
+        else:
+            image_data_list = []
 
         logger.info(
             f"Image(s) generated successfully. Number of images: {len(image_data_list)}"
@@ -172,52 +154,20 @@ async def edit_image_from_prompt_stream(
         f"Requesting streaming image edit for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
     )
     try:
-        # For image editing, we need to include the image in the message content
-        image_data_url = "data:image/png;base64," + base64.b64encode(image_bytes).decode()
-        content = [
-            {"type": "input_text", "text": prompt},
-            {"type": "input_image", "image_url": image_data_url}
-        ]
-        
-        if mask_bytes:
-            mask_data_url = "data:image/png;base64," + base64.b64encode(mask_bytes).decode()
-            content.append({"type": "input_image", "image_url": mask_data_url})
-        
-        input_items = [
-            {"type": "message", "role": "user", "content": content}
-        ]
+        # Pseudo-streaming: yield start event, then the final image after edit.
+        yield {"type": "progress", "data": {"status": "started"}}
 
-        tool = {
-            "type": "image_generation",
-            "model": "gpt-image-1",
-            "size": size,
-            "quality": quality,
-        }
-
-        # Create streaming response
-        stream = await client.responses.create(
-            model="gpt-image-1",
-            input=input_items,
-            tools=[tool],
-            stream=True
+        image_data_list = await edit_image_from_prompt(
+            prompt=prompt,
+            image_bytes=image_bytes,
+            mask_bytes=mask_bytes,
+            size=size,
+            quality=quality,
+            n=n,
         )
 
-        # Process stream chunks
-        async for chunk in stream:
-            if hasattr(chunk, 'choices') and chunk.choices:
-                for choice in chunk.choices:
-                    if hasattr(choice, 'delta'):
-                        yield {
-                            "type": "progress",
-                            "data": choice.delta
-                        }
-            elif hasattr(chunk, 'output'):
-                for output in chunk.output:
-                    if getattr(output, "type", None) == "image_generation_call":
-                        yield {
-                            "type": "image",
-                            "data": output.result
-                        }
+        if image_data_list and len(image_data_list) > 0:
+            yield {"type": "image", "data": image_data_list[0]}
 
     except Exception as e:
         logger.error(f"Error in streaming image edit: {e}")
@@ -252,40 +202,41 @@ async def edit_image_from_prompt(
     logger.info(
         f"Requesting image edit for prompt: '{prompt}' with size={size}, quality={quality}, n={n}")
     try:
-        # For image editing, we need to include the image in the message content
-        image_data_url = "data:image/png;base64," + base64.b64encode(image_bytes).decode()
+        # Build input content with base64 embedded images according to
+        # Responses API image editing spec.
+
         content = [
             {"type": "input_text", "text": prompt},
-            {"type": "input_image", "image_url": image_data_url}
+            {
+                "type": "input_image",
+                "image_url": "data:image/png;base64," + base64.b64encode(image_bytes).decode(),
+            },
         ]
-        
         if mask_bytes:
-            mask_data_url = "data:image/png;base64," + base64.b64encode(mask_bytes).decode()
-            content.append({"type": "input_image", "image_url": mask_data_url})
-        
-        input_items = [
-            {"type": "message", "role": "user", "content": content}
-        ]
+            content.append(
+                {
+                    "type": "input_image",
+                    "image_url": "data:image/png;base64," + base64.b64encode(mask_bytes).decode(),
+                }
+            )
 
-        tool = {
-            "type": "image_generation",
-            "model": "gpt-image-1",
-            "size": size,
-            "quality": quality,
-        }
-
-        response = await client.responses.create(
-            model="gpt-image-1",
-            input=input_items,
-            tools=[tool],
+        args = dict(
+            model="gpt-4o",
+            input=[{"type": "message", "role": "user", "content": content}],
+            tools=[{
+                "type": "image_generation",
+                "size": size,
+            }],
         )
 
-        image_data_list = [
-            output.result
-            for output in response.output
-            if getattr(output, "type", None) == "image_generation_call"
-            and getattr(output, "result", None)
-        ]
+        response = await client.responses.create(**args)
+
+        if hasattr(response, "output"):
+            image_data_list = [
+                item.result for item in response.output if getattr(item, "result", None)
+            ]
+        else:
+            image_data_list = []
 
         logger.info(
             f"Image(s) edited successfully. Number of images: {len(image_data_list)}"

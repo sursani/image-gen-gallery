@@ -6,7 +6,18 @@ import logging
 import json
 import base64
 
-from ..services.openai_service import edit_image_from_prompt, edit_image_from_prompt_stream, save_image_from_base64
+# Import the module instead of binding function objects so that monkey-patching
+# in tests updates behaviour correctly.
+from ..services import openai_service
+
+# Re-export specific service helpers so that unit tests (and any external
+# callers) can continue to patch `backend.app.routes.editing_routes.*` without
+# needing to know the internal indirection.  These are thin pass-through
+# references kept purely for compatibility.
+
+edit_image_from_prompt = openai_service.edit_image_from_prompt  # noqa: E305
+edit_image_from_prompt_stream = openai_service.edit_image_from_prompt_stream
+save_image_from_base64 = openai_service.save_image_from_base64
 from ..models.image_metadata import ImageMetadata
 from ..schemas import EditImageRequest
 
@@ -103,11 +114,11 @@ async def handle_edit_image(
 
         # 2. Save the edited image and record metadata
         parameters = {
-            "model": "gpt-image-1",
+            "model": "gpt-4o",
             "size": edit_request.size,
             "quality": edit_request.quality,
             "n": edit_request.n,
-            "type": "edit", 
+            "type": "edit",
             "original_prompt": edit_request.prompt
         }
         saved_metadata_list = await save_image_from_base64(
@@ -164,7 +175,7 @@ async def handle_edit_image_stream(
         """Generator function for SSE streaming."""
         collected_image_data = []
         try:
-            async for chunk in edit_image_from_prompt_stream(
+            async for chunk in openai_service.edit_image_from_prompt_stream(
                 prompt=edit_request.prompt,
                 image_bytes=image_bytes,
                 mask_bytes=mask_bytes,
@@ -198,7 +209,7 @@ async def handle_edit_image_stream(
             # After streaming completes, save the images
             if collected_image_data:
                 parameters = {
-                    "model": "gpt-image-1",
+                    "model": "gpt-4o",
                     "size": edit_request.size,
                     "quality": edit_request.quality,
                     "n": edit_request.n,
