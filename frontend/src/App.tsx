@@ -2,10 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import './App.css'
 import Button from './components/Button'
 import GalleryView, { GalleryViewRef } from './components/GalleryView'
-import ImageGenerationForm from './components/ImageGenerationForm'
 import ImageGenerationFormStreaming from './components/ImageGenerationFormStreaming'
 import ImageEditFormStreaming from './components/ImageEditFormStreaming'
-import EditImageView from './views/EditImageView'
 
 const pathToView = (path: string): string => {
   switch (path) {
@@ -13,8 +11,6 @@ const pathToView = (path: string): string => {
       return 'create'
     case '/edit':
       return 'edit'
-    case '/edit-stream':
-      return 'edit-stream'
     default:
       return 'gallery'
   }
@@ -26,8 +22,6 @@ const viewToPath = (view: string): string => {
       return '/create'
     case 'edit':
       return '/edit'
-    case 'edit-stream':
-      return '/edit-stream'
     default:
       return '/'
   }
@@ -84,7 +78,6 @@ const styles = {
 
 function App() {
   const [activeView, setActiveView] = useState<string>(() => pathToView(window.location.pathname))
-  const [useStreaming, setUseStreaming] = useState<boolean>(true) // Default to streaming
   const galleryRef = useRef<GalleryViewRef>(null)
 
   const navigate = useCallback((view: string) => {
@@ -118,10 +111,8 @@ function App() {
       case 'gallery':
         return <GalleryView ref={galleryRef} />
       case 'create':
-        return useStreaming ? <ImageGenerationFormStreaming /> : <ImageGenerationForm />
+        return <ImageGenerationFormStreaming />
       case 'edit':
-        return useStreaming ? <ImageEditFormStreaming /> : <EditImageView navigate={navigate} />
-      case 'edit-stream':
         return <ImageEditFormStreaming />
       default:
         return <GalleryView ref={galleryRef} />
@@ -156,29 +147,7 @@ function App() {
             >
               Edit
             </Button>
-            <Button
-              onClick={() => navigate('edit-stream')}
-              variant={activeView === 'edit-stream' ? 'primary' : 'outline'}
-              className="text-sm md:text-base"
-            >
-              Edit (Stream)
-            </Button>
           </nav>
-          
-          {/* Streaming Toggle */}
-          {(activeView === 'create' || activeView === 'edit') && (
-            <div className="mt-4 flex justify-center items-center gap-2">
-              <label className="flex items-center gap-2 text-sm text-gray-400">
-                <input
-                  type="checkbox"
-                  checked={useStreaming}
-                  onChange={(e) => setUseStreaming(e.target.checked)}
-                  className="w-4 h-4"
-                />
-                Enable Streaming (Progressive Loading)
-              </label>
-            </div>
-          )}
         </header>
 
         <main style={styles.main} className="flex-grow">

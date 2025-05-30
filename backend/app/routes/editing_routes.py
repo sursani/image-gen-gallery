@@ -15,7 +15,6 @@ from ..services import openai_service
 # needing to know the internal indirection.  These are thin pass-through
 # references kept purely for compatibility.
 
-edit_image_from_prompt = openai_service.edit_image_from_prompt  # noqa: E305
 edit_image_from_prompt_stream = openai_service.edit_image_from_prompt_stream
 save_image_from_base64 = openai_service.save_image_from_base64
 from ..models.image_metadata import ImageMetadata
@@ -67,82 +66,6 @@ async def validate_mask_file(mask: Optional[UploadFile] = None) -> Optional[byte
 
     logger.info(f"Mask provided, size: {len(mask_bytes)} bytes")
     return mask_bytes
-
-@router.post("/", response_model=ImageMetadata)
-async def handle_edit_image(
-    prompt: str = Form(...),
-    size: str = Form("1024x1024"),
-    quality: str = Form("auto"),
-    n: int = Form(1),
-    image: UploadFile = File(...),
-    mask: Optional[UploadFile] = File(None)
-):
-    """Handles image editing requests with image and optional mask uploads."""
-    logger.info(f"Received image edit request for prompt: '{prompt}'")
-
-    # Validate request parameters using Pydantic model
-    try:
-        # Create EditImageRequest to validate parameters
-        edit_request = EditImageRequest(
-            prompt=prompt,
-            size=size,
-            quality=quality,
-            n=n
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-
-    # Validate image and mask files
-    image_bytes = await validate_image_file(image)
-    mask_bytes = await validate_mask_file(mask)
-
-    # --- API Call and Processing ---
-    try:
-        # 1. Edit image using OpenAI service
-        edited_image_data_list = await edit_image_from_prompt(
-            prompt=edit_request.prompt,
-            image_bytes=image_bytes,
-            mask_bytes=mask_bytes,
-            size=edit_request.size,
-            quality=edit_request.quality,
-            n=edit_request.n
-        )
-
-        if not edited_image_data_list:
-            # Error logged within the service function
-            raise HTTPException(status_code=500, detail="Image editing failed via OpenAI API.")
-
-        # 2. Save the edited image and record metadata
-        parameters = {
-            "model": "gpt-4o",
-            "size": edit_request.size,
-            "quality": edit_request.quality,
-            "n": edit_request.n,
-            "type": "edit",
-            "original_prompt": edit_request.prompt
-        }
-        saved_metadata_list = await save_image_from_base64(
-            image_data_list=edited_image_data_list,
-            prompt=edit_request.prompt,
-            revised_prompt=None,  # Edits don't provide revised prompts
-            parameters=parameters
-        )
-
-        if not saved_metadata_list:
-            logger.error("Failed to save the edited image.")
-            raise HTTPException(status_code=500, detail="Failed to process edited image.")
-
-        # Return the first image's metadata
-        saved_metadata = saved_metadata_list[0]
-        logger.info(f"Successfully edited and saved image. Metadata ID: {saved_metadata.id}")
-        return saved_metadata
-        
-    except HTTPException as http_exc:
-        raise http_exc
-    except Exception as e:
-        logger.error(f"Unexpected error handling image edit request: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An unexpected error occurred during image editing.")
-
 
 @router.post("/stream")
 async def handle_edit_image_stream(
