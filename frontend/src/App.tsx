@@ -4,6 +4,7 @@ import Button from './components/Button'
 import GalleryView, { GalleryViewRef } from './components/GalleryView'
 import ImageGenerationForm from './components/ImageGenerationForm'
 import ImageGenerationFormStreaming from './components/ImageGenerationFormStreaming'
+import ImageEditFormStreaming from './components/ImageEditFormStreaming'
 import EditImageView from './views/EditImageView'
 
 const pathToView = (path: string): string => {
@@ -12,6 +13,8 @@ const pathToView = (path: string): string => {
       return 'create'
     case '/edit':
       return 'edit'
+    case '/edit-stream':
+      return 'edit-stream'
     default:
       return 'gallery'
   }
@@ -23,6 +26,8 @@ const viewToPath = (view: string): string => {
       return '/create'
     case 'edit':
       return '/edit'
+    case 'edit-stream':
+      return '/edit-stream'
     default:
       return '/'
   }
@@ -115,7 +120,9 @@ function App() {
       case 'create':
         return useStreaming ? <ImageGenerationFormStreaming /> : <ImageGenerationForm />
       case 'edit':
-        return <EditImageView navigate={navigate} />
+        return useStreaming ? <ImageEditFormStreaming /> : <EditImageView navigate={navigate} />
+      case 'edit-stream':
+        return <ImageEditFormStreaming />
       default:
         return <GalleryView ref={galleryRef} />
     }
@@ -127,24 +134,34 @@ function App() {
         <header style={styles.header} className="mb-12 pb-6 border-b border-gray-800">
           <h1 style={styles.h1} className="text-4xl font-bold text-center text-white mb-8">AI Image Generation Gallery</h1>
           
-          <nav style={styles.nav} className="mt-6 flex justify-center items-center space-x-6">
+          <nav className="flex justify-center gap-2 md:gap-4">
             <Button
               onClick={() => navigate('gallery')}
               variant={activeView === 'gallery' ? 'primary' : 'outline'}
+              className="text-sm md:text-base"
             >
-              View Gallery
+              Gallery
             </Button>
             <Button
               onClick={() => navigate('create')}
               variant={activeView === 'create' ? 'primary' : 'outline'}
+              className="text-sm md:text-base"
             >
-              Create Image
+              Create
             </Button>
             <Button
               onClick={() => navigate('edit')}
               variant={activeView === 'edit' ? 'primary' : 'outline'}
+              className="text-sm md:text-base"
             >
-              Edit Image
+              Edit
+            </Button>
+            <Button
+              onClick={() => navigate('edit-stream')}
+              variant={activeView === 'edit-stream' ? 'primary' : 'outline'}
+              className="text-sm md:text-base"
+            >
+              Edit (Stream)
             </Button>
           </nav>
           

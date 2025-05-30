@@ -25,7 +25,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # Define allowed image types for upload
-ALLOWED_IMAGE_TYPES = ["image/png"]
+ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"]
 # Define max file size (e.g., 4MB, as required by DALL-E 2)
 MAX_FILE_SIZE = 4 * 1024 * 1024 
 
@@ -34,7 +34,7 @@ async def validate_image_file(image: UploadFile) -> bytes:
     if image.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid image file type: {image.content_type}. Must be PNG.",
+            detail=f"Invalid image file type: {image.content_type}. Must be PNG, JPEG, or JPG.",
         )
 
     image_bytes = await image.read()
@@ -55,7 +55,7 @@ async def validate_mask_file(mask: Optional[UploadFile] = None) -> Optional[byte
     if mask.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid mask file type: {mask.content_type}. Must be PNG.",
+            detail=f"Invalid mask file type: {mask.content_type}. Must be PNG, JPEG, or JPG.",
         )
 
     mask_bytes = await mask.read()

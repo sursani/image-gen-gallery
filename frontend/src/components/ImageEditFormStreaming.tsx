@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { generateImageStream, type StreamEvent } from '../api/imageGeneration';
+import React, { useState, useRef, useCallback } from 'react';
+import { editImageStream } from '../api/imageEditing';
+import type { StreamEvent } from '../api/imageGeneration';
 
 interface ProgressStage {
   id: string;
@@ -9,16 +10,20 @@ interface ProgressStage {
   active: boolean;
 }
 
-function ImageGenerationFormStreaming() {
+function ImageEditFormStreaming() {
   const [formState, setFormState] = useState({
     prompt: '',
     quality: 'auto',
     size: '1024x1024',
-    format: 'url'
   });
+
+  const [originalImage, setOriginalImage] = useState<File | null>(null);
+  const [maskImage, setMaskImage] = useState<File | null>(null);
+  const [originalPreview, setOriginalPreview] = useState<string | null>(null);
 
   const [errors, setErrors] = useState({
     prompt: '',
+    image: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -30,22 +35,24 @@ function ImageGenerationFormStreaming() {
   const [estimatedTime, setEstimatedTime] = useState<string>('');
   
   const abortControllerRef = useRef<(() => void) | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const maskInputRef = useRef<HTMLInputElement>(null);
 
   // Progress stages for better UX
   const [progressStages, setProgressStages] = useState<ProgressStage[]>([
-    { id: 'started', label: 'Starting', description: 'Initializing generation request', completed: false, active: false },
-    { id: 'processing', label: 'Processing', description: 'Analyzing your prompt', completed: false, active: false },
-    { id: 'generating', label: 'Generating', description: 'Creating your image with AI', completed: false, active: false },
-    { id: 'complete', label: 'Complete', description: 'Image ready!', completed: false, active: false }
+    { id: 'started', label: 'Starting', description: 'Initializing edit request', completed: false, active: false },
+    { id: 'processing', label: 'Processing', description: 'Analyzing your prompt and image', completed: false, active: false },
+    { id: 'generating', label: 'Editing', description: 'Applying edits with AI', completed: false, active: false },
+    { id: 'complete', label: 'Complete', description: 'Edit ready!', completed: false, active: false }
   ]);
 
   // Update estimated time
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isLoading || !startTime) return;
 
     const interval = setInterval(() => {
       const elapsed = (Date.now() - startTime) / 1000;
-      const estimated = Math.max(30 - elapsed, 0); // Estimate 30 seconds total
+      const estimated = Math.max(40 - elapsed, 0); // Estimate 40 seconds for editing
       
       if (estimated > 0) {
         setEstimatedTime(`~${Math.ceil(estimated)}s remaining`);
@@ -98,12 +105,32 @@ function ImageGenerationFormStreaming() {
     }
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setErrors(prev => ({ ...prev, image: 'Please select a valid image file.' }));
+      return;
+    }
+
+    setOriginalImage(file);
+    setErrors(prev => ({ ...prev, image: '' }));
+
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setOriginalPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const validateForm = () => {
     let isValid = true;
-    const newErrors = { prompt: '' };
+    const newErrors = { prompt: '', image: '' };
 
     if (!formState.prompt.trim()) {
-      newErrors.prompt = 'Prompt is required.';
+      newErrors.prompt = 'Edit prompt is required.';
       isValid = false;
     } else if (formState.prompt.length < 10) {
       newErrors.prompt = 'Prompt must be at least 10 characters long.';
@@ -113,16 +140,22 @@ function ImageGenerationFormStreaming() {
       isValid = false;
     }
 
+    if (!originalImage) {
+      newErrors.image = 'Please select an image to edit.';
+      isValid = false;
+    }
+
     setErrors(newErrors);
     return isValid;
   };
 
   const handleStreamEvent = (event: StreamEvent) => {
-    console.log('Stream event:', event); // Debug logging
+    console.log('Stream event:', event.type, event);
     
     switch (event.type) {
       case 'progress':
         const status = event.data?.status;
+        console.log('Progress status:', status);
         if (status === 'started') {
           updateProgressStage('started');
         } else if (status === 'processing') {
@@ -133,16 +166,20 @@ function ImageGenerationFormStreaming() {
         break;
         
       case 'partial_image':
-        // Handle partial images for progressive loading
+        console.log('Received partial image, index:', event.index);
         if (event.data) {
           const partialImageUrl = `data:image/png;base64,${event.data}`;
-          setPartialImages(prev => [...prev, partialImageUrl]);
-          setCurrentImageData(partialImageUrl); // Show the latest partial
+          setPartialImages(prev => {
+            console.log('Previous partial images count:', prev.length);
+            return [...prev, partialImageUrl];
+          });
+          setCurrentImageData(partialImageUrl);
+          console.log('Set current image to partial');
         }
         break;
         
       case 'image':
-        // We received the complete image - just update currentImageData, don't set imageUrl
+        console.log('Received final image');
         if (event.data) {
           const fullImageUrl = `data:image/png;base64,${event.data}`;
           setCurrentImageData(fullImageUrl);
@@ -153,7 +190,7 @@ function ImageGenerationFormStreaming() {
         break;
         
       case 'complete':
-        // Legacy support - handle complete event
+        console.log('Received complete event');
         if (event.metadata && event.image_data) {
           completeAllStages();
           const fullImageUrl = `data:image/png;base64,${event.image_data}`;
@@ -164,6 +201,7 @@ function ImageGenerationFormStreaming() {
         break;
         
       case 'error':
+        console.error('Stream error:', event.error);
         setApiError(event.error || 'An unknown error occurred');
         setIsLoading(false);
         resetProgress();
@@ -178,22 +216,22 @@ function ImageGenerationFormStreaming() {
     setCurrentImageData(null);
     resetProgress();
     
-    if (validateForm()) {
+    if (validateForm() && originalImage) {
       setIsLoading(true);
       setStartTime(Date.now());
       
       try {
-        const abort = await generateImageStream(
-          {
-            prompt: formState.prompt,
-            size: formState.size,
-            quality: formState.quality,
-          },
+        const abort = await editImageStream(
+          formState.prompt,
+          originalImage,
+          maskImage, // null for now, can be enhanced later
+          formState.size,
+          formState.quality,
           handleStreamEvent
         );
         abortControllerRef.current = abort;
       } catch (error: any) {
-        setApiError(error.message || 'An unknown error occurred generating the image.');
+        setApiError(error.message || 'An unknown error occurred editing the image.');
         setIsLoading(false);
         resetProgress();
       }
@@ -209,25 +247,82 @@ function ImageGenerationFormStreaming() {
     }
   };
 
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="min-h-screen bg-dark-bg px-4 py-20">
       <div className="max-w-3xl mx-auto">
         {/* Header Section */}
         <div className="text-center mb-20">
           <h1 className="text-5xl md:text-6xl font-bold text-dark-text-primary mb-4 tracking-tight">
-            Generate New Image
+            Edit Your Image
           </h1>
           <p className="text-lg text-dark-text-muted">
-            Create amazing images with AI - Now with real-time progress!
+            Upload an image and describe the changes you want to make
           </p>
         </div>
 
         {/* Form Section */}
         <form onSubmit={handleSubmit} className="space-y-12">
+          {/* Image Upload Section */}
+          <div className="space-y-4">
+            <label className="block text-base font-medium text-dark-text-primary">
+              Select Image to Edit
+            </label>
+            
+            <div className="relative">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                disabled={isLoading}
+              />
+              
+              <div 
+                onClick={triggerFileInput}
+                className={`
+                  w-full h-64 border-2 border-dashed border-dark-border/50 
+                  rounded-2xl flex items-center justify-center cursor-pointer
+                  transition-all duration-300
+                  hover:border-dark-accent/50 hover:bg-dark-surface/30
+                  ${originalPreview ? 'bg-dark-surface/20' : 'bg-dark-surface/10'}
+                  ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+                  ${errors.image ? 'border-red-500/50' : ''}
+                `}
+              >
+                {originalPreview ? (
+                  <img 
+                    src={originalPreview} 
+                    alt="Selected image" 
+                    className="max-h-full max-w-full object-contain rounded-xl"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <svg className="w-12 h-12 text-dark-text-muted mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-dark-text-muted">Click to select an image</p>
+                    <p className="text-sm text-dark-text-muted/60 mt-1">PNG, JPG, JPEG up to 4MB</p>
+                  </div>
+                )}
+              </div>
+              
+              {errors.image && (
+                <p className="absolute -bottom-6 left-0 text-sm text-red-500">
+                  {errors.image}
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Prompt Section */}
           <div className="space-y-4">
             <label htmlFor="prompt" className="block text-base font-medium text-dark-text-primary">
-              Describe your image
+              Describe the changes you want to make
             </label>
             <div className="relative">
               <textarea
@@ -235,7 +330,7 @@ function ImageGenerationFormStreaming() {
                 name="prompt"
                 value={formState.prompt}
                 onChange={handleChange}
-                placeholder="A serene mountain landscape at sunset with golden light..."
+                placeholder="Add a hat to the person, change the background to a beach, remove the object..."
                 rows={6}
                 aria-required="true"
                 aria-invalid={!!errors.prompt}
@@ -262,7 +357,7 @@ function ImageGenerationFormStreaming() {
               )}
             </div>
             <div className="flex justify-between items-center text-sm text-dark-text-muted">
-              <span>Be descriptive for best results</span>
+              <span>Be specific about the changes you want</span>
               <span>{formState.prompt.length}/1000</span>
             </div>
           </div>
@@ -365,10 +460,10 @@ function ImageGenerationFormStreaming() {
               {isLoading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Generating...</span>
+                  <span>Editing...</span>
                 </>
               ) : (
-                'Generate Image'
+                'Edit Image'
               )}
             </button>
             {isLoading && (
@@ -399,7 +494,7 @@ function ImageGenerationFormStreaming() {
               <div className="mb-8">
                 <div className="text-center space-y-4 mb-6">
                   <h2 className="text-3xl font-bold text-dark-text-primary">
-                    {isLoading ? 'Creating Your Image' : 'Your Generated Image'}
+                    {isLoading ? 'Editing Your Image' : 'Your Edited Image'}
                   </h2>
                 </div>
 
@@ -407,7 +502,7 @@ function ImageGenerationFormStreaming() {
                   {/* Show the current image data directly - this will update as partial images come in */}
                   <img
                     src={currentImageData}
-                    alt="AI Generated"
+                    alt="AI Edited"
                     className="w-full rounded-2xl transition-all duration-300"
                     style={{
                       filter: isLoading ? 'blur(8px)' : 'blur(0px)',
@@ -422,7 +517,7 @@ function ImageGenerationFormStreaming() {
                         onClick={() => {
                           const link = document.createElement('a');
                           link.href = currentImageData;
-                          link.download = `ai-generated-${Date.now()}.png`;
+                          link.download = `ai-edited-${Date.now()}.png`;
                           link.click();
                         }}
                         className="bg-dark-accent/90 text-white px-4 py-2 rounded-xl font-medium hover:bg-dark-accent transition-colors duration-200 backdrop-blur"
@@ -517,7 +612,7 @@ function ImageGenerationFormStreaming() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-red-500 mb-2">Generation Failed</h3>
+                <h3 className="text-lg font-semibold text-red-500 mb-2">Edit Failed</h3>
                 <p className="text-dark-text-secondary">{apiError}</p>
               </div>
             </div>
@@ -528,4 +623,4 @@ function ImageGenerationFormStreaming() {
   );
 }
 
-export default ImageGenerationFormStreaming;
+export default ImageEditFormStreaming; 
