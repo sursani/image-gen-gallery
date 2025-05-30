@@ -1,58 +1,63 @@
-# Environment variables
-.env
+# Backend-specific ignores
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Environment variables (in addition to root .gitignore)
+.env.local
+.env.development
+.env.production
 
-# Virtual environment
-.venv
-venv/
-env/
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+image_metadata.db
 
-# IDE files
-.idea/
-.vscode/
-
-# Local Storage
+# Local Storage (images and test data)
 local_storage/
 
-# Testing
-.pytest_cache/
+# Test outputs specific to backend
 pytest-of-*/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 
-# Added by Claude Task Master
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dev-debug.log
-# Dependency directories
-node_modules/
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-# OS specific
-.DS_Store
-# Task files
-tasks.json
-tasks/
+# Python distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Add configuration files to gitignore
-.cursor/
-.roo/
-.roomodes
+# PyInstaller
+*.manifest
+*.spec
 
-# Keep scripts directory
-!scripts/ 
+# Unit test / coverage reports
+nosetests.xml
+coverage.json
+*.cover
+.hypothesis/
+
+# Flask/FastAPI instance folder
+instance/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Keep important directories
+!scripts/
+!tests/
+!app/ 

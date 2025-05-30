@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Initialise logging before any other project imports that might emit logs
 from .core.logging import init_logging
 from .core.settings import settings
+from .core.security import security_headers_middleware
 
 init_logging()
 from .routes import gallery, image_routes
@@ -65,8 +66,11 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], # Expand allowed methods if needed
-    allow_headers=["*"], # Allow all headers
+    allow_headers=["Content-Type", "Authorization", "Accept"], # Specific headers instead of wildcard
 )
+
+# Add security headers middleware
+app.middleware("http")(security_headers_middleware)
 
 @app.get("/", tags=["Health"])
 async def root():
