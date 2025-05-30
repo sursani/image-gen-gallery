@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { generateImageStream, type StreamEvent } from '../api/imageGeneration';
+import ProgressiveImage from './ProgressiveImage';
 
 interface ProgressStage {
   id: string;
@@ -23,6 +24,8 @@ function ImageGenerationFormStreaming() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [partialImages, setPartialImages] = useState<string[]>([]);
+  const [currentImageData, setCurrentImageData] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [currentStage, setCurrentStage] = useState<string>('');
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -131,13 +134,23 @@ function ImageGenerationFormStreaming() {
         }
         break;
         
+      case 'partial_image':
+        // Handle partial images for progressive loading
+        if (event.data) {
+          const partialImageUrl = `data:image/png;base64,${event.data}`;
+          setPartialImages(prev => [...prev, partialImageUrl]);
+          setCurrentImageData(partialImageUrl); // Show the latest partial
+        }
+        break;
+        
       case 'image':
         // We received the complete image
         if (event.data) {
-          completeAllStages();
           const fullImageUrl = `data:image/png;base64,${event.data}`;
           setImageUrl(fullImageUrl);
+          setCurrentImageData(fullImageUrl);
           setIsLoading(false);
+          completeAllStages();
           setCurrentStage('complete');
         }
         break;
@@ -148,6 +161,7 @@ function ImageGenerationFormStreaming() {
           completeAllStages();
           const fullImageUrl = `data:image/png;base64,${event.image_data}`;
           setImageUrl(fullImageUrl);
+          setCurrentImageData(fullImageUrl);
           setIsLoading(false);
           setCurrentStage('complete');
         }
@@ -165,6 +179,8 @@ function ImageGenerationFormStreaming() {
     e.preventDefault();
     setApiError(null);
     setImageUrl(null);
+    setPartialImages([]);
+    setCurrentImageData(null);
     resetProgress();
     
     if (validateForm()) {
@@ -380,93 +396,93 @@ function ImageGenerationFormStreaming() {
           </div>
         </form>
 
-        {/* Enhanced Progress Section */}
-        {isLoading && (
+        {/* Enhanced Progress Section with Image Preview */}
+        {(isLoading || currentImageData) && (
           <div className="mt-16 space-y-8">
-            {/* Progress Header */}
-            <div className="text-center space-y-4">
-              <h3 className="text-2xl font-bold text-dark-text-primary">
-                Creating Your Image
-              </h3>
-              <p className="text-dark-text-muted">
-                {progressStages.find(s => s.active)?.description || 'Preparing...'}
-              </p>
-              {estimatedTime && (
-                <p className="text-sm text-dark-accent font-medium">
-                  {estimatedTime}
-                </p>
-              )}
-            </div>
-
-            {/* Visual Progress Steps */}
-            <div className="relative">
-              {/* Progress Line */}
-              <div className="absolute top-6 left-0 right-0 h-0.5 bg-dark-border rounded-full">
-                <div 
-                  className="h-full bg-gradient-to-r from-dark-accent to-dark-accent/80 rounded-full transition-all duration-1000 ease-out"
-                  style={{ 
-                    width: `${(progressStages.filter(s => s.completed).length / progressStages.length) * 100}%` 
-                  }}
+            {/* Show image preview if we have any data */}
+            {currentImageData && (
+              <div className="mb-8">
+                <ProgressiveImage
+                  imageUrl={currentImageData}
+                  isLoading={isLoading}
+                  alt="AI Generated"
+                  className="w-full rounded-3xl overflow-hidden"
                 />
               </div>
+            )}
 
-              {/* Progress Steps */}
-              <div className="relative flex justify-between">
-                {progressStages.map((stage, index) => (
-                  <div key={stage.id} className="flex flex-col items-center space-y-3">
-                    {/* Step Circle */}
-                    <div className={`
-                      relative w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-500
-                      ${stage.completed 
-                        ? 'bg-dark-accent border-dark-accent' 
-                        : stage.active 
-                          ? 'bg-dark-accent/20 border-dark-accent animate-pulse'
-                          : 'bg-dark-surface border-dark-border'
-                      }
-                    `}>
-                      {stage.completed ? (
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : stage.active ? (
-                        <div className="w-4 h-4 bg-dark-accent rounded-full animate-ping" />
-                      ) : (
-                        <div className="w-2 h-2 bg-dark-text-muted rounded-full" />
-                      )}
-                    </div>
-
-                    {/* Step Label */}
-                    <div className="text-center">
-                      <p className={`
-                        text-sm font-medium transition-colors duration-300
-                        ${stage.completed || stage.active 
-                          ? 'text-dark-text-primary' 
-                          : 'text-dark-text-muted'
-                        }
-                      `}>
-                        {stage.label}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Animated Loading Visual */}
-            <div className="mt-12 flex justify-center">
-              <div className="relative">
-                {/* Outer ring */}
-                <div className="w-32 h-32 border-4 border-dark-border/30 rounded-full"></div>
-                {/* Spinning accent ring */}
-                <div className="absolute top-0 left-0 w-32 h-32 border-4 border-transparent border-t-dark-accent rounded-full animate-spin"></div>
-                {/* Inner pulsing circle */}
-                <div className="absolute top-4 left-4 w-24 h-24 bg-dark-accent/10 rounded-full animate-pulse flex items-center justify-center">
-                  <svg className="w-8 h-8 text-dark-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
+            {/* Progress Header - Only show when still loading */}
+            {isLoading && (
+              <>
+                <div className="text-center space-y-4">
+                  <h3 className="text-2xl font-bold text-dark-text-primary">
+                    Creating Your Image
+                  </h3>
+                  <p className="text-dark-text-muted">
+                    {progressStages.find(s => s.active)?.description || 'Preparing...'}
+                  </p>
+                  {estimatedTime && (
+                    <p className="text-sm text-dark-accent font-medium">
+                      {estimatedTime}
+                    </p>
+                  )}
                 </div>
-              </div>
-            </div>
+
+                {/* Visual Progress Steps */}
+                <div className="relative">
+                  {/* Progress Line */}
+                  <div className="absolute top-6 left-0 right-0 h-0.5 bg-dark-border rounded-full">
+                    <div 
+                      className="h-full bg-gradient-to-r from-dark-accent to-dark-accent/80 rounded-full transition-all duration-1000 ease-out"
+                      style={{ 
+                        width: `${(progressStages.filter(s => s.completed).length / progressStages.length) * 100}%` 
+                      }}
+                    />
+                  </div>
+
+                  {/* Progress Steps */}
+                  <div className="relative flex justify-between">
+                    {progressStages.map((stage, index) => (
+                      <div key={stage.id} className="flex flex-col items-center space-y-3">
+                        {/* Step Circle */}
+                        <div className={`
+                          relative w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-500
+                          ${stage.completed 
+                            ? 'bg-dark-accent border-dark-accent' 
+                            : stage.active 
+                              ? 'bg-dark-accent/20 border-dark-accent animate-pulse'
+                              : 'bg-dark-surface border-dark-border'
+                          }
+                        `}>
+                          {stage.completed ? (
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : stage.active ? (
+                            <div className="w-4 h-4 bg-dark-accent rounded-full animate-ping" />
+                          ) : (
+                            <div className="w-2 h-2 bg-dark-text-muted rounded-full" />
+                          )}
+                        </div>
+
+                        {/* Step Label */}
+                        <div className="text-center">
+                          <p className={`
+                            text-sm font-medium transition-colors duration-300
+                            ${stage.completed || stage.active 
+                              ? 'text-dark-text-primary' 
+                              : 'text-dark-text-muted'
+                            }
+                          `}>
+                            {stage.label}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

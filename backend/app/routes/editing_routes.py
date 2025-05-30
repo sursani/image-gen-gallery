@@ -174,6 +174,7 @@ async def handle_edit_image_stream(
     async def generate():
         """Generator function for SSE streaming."""
         collected_image_data = []
+        partial_images = []
         try:
             async for chunk in openai_service.edit_image_from_prompt_stream(
                 prompt=edit_request.prompt,
@@ -190,11 +191,21 @@ async def handle_edit_image_stream(
                         "data": chunk["data"]
                     })
                     yield f"data: {event_data}\n\n"
-                elif chunk["type"] == "image":
-                    collected_image_data.append(chunk["data"])
-                    # Send partial image data
+                elif chunk["type"] == "partial_image":
+                    # Store partial images
+                    partial_images.append(chunk["data"])
+                    # Send partial image data for progressive rendering
                     event_data = json.dumps({
                         "type": "partial_image",
+                        "data": chunk["data"],
+                        "index": chunk.get("index", len(partial_images))
+                    })
+                    yield f"data: {event_data}\n\n"
+                elif chunk["type"] == "image":
+                    collected_image_data.append(chunk["data"])
+                    # Send final complete image
+                    event_data = json.dumps({
+                        "type": "image",
                         "data": chunk["data"]
                     })
                     yield f"data: {event_data}\n\n"

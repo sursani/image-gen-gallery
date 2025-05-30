@@ -71,6 +71,7 @@ async def handle_generate_image_stream(request: GenerateImageRequest = Body(...)
     async def generate():
         """Generator function for SSE streaming."""
         collected_image_data = []
+        partial_images = []
         try:
             async for chunk in openai_service.generate_image_from_prompt_stream(
                 prompt=request.prompt,
@@ -86,12 +87,22 @@ async def handle_generate_image_stream(request: GenerateImageRequest = Body(...)
                         "data": chunk["data"]
                     })
                     yield f"data: {event_data}\n\n"
-                elif chunk["type"] == "image":
-                    # Collect image data for saving
-                    collected_image_data.append(chunk["data"])
-                    # Send partial image data (could be used for progressive rendering)
+                elif chunk["type"] == "partial_image":
+                    # Store partial images
+                    partial_images.append(chunk["data"])
+                    # Send partial image data for progressive rendering
                     event_data = json.dumps({
                         "type": "partial_image",
+                        "data": chunk["data"],
+                        "index": chunk.get("index", len(partial_images))
+                    })
+                    yield f"data: {event_data}\n\n"
+                elif chunk["type"] == "image":
+                    # Collect final image data for saving
+                    collected_image_data.append(chunk["data"])
+                    # Send the final complete image
+                    event_data = json.dumps({
+                        "type": "image",
                         "data": chunk["data"]
                     })
                     yield f"data: {event_data}\n\n"

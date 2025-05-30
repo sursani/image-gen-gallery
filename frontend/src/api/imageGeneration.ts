@@ -42,11 +42,12 @@ export const generateImage = async (requestData: GenerateImageRequest): Promise<
 
 // Streaming types
 export interface StreamEvent {
-  type: 'progress' | 'image' | 'complete' | 'error';
+  type: 'progress' | 'partial_image' | 'image' | 'complete' | 'error';
   data?: any;
   metadata?: GenerateImageResponse;
   image_data?: string;
   error?: string;
+  index?: number;
 }
 
 /**
