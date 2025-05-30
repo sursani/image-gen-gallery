@@ -19,8 +19,9 @@ A full-stack application for generating, editing, and managing AI-generated imag
 ---
 
 ## Features
-- Generate images using OpenAI's image models
+- Generate images using OpenAI's **Responses API** (gpt-4o)
 - Edit images with prompt-based modifications
+- **Stream** generation and editing progress via Server-Sent Events
 - View and manage a gallery of generated images
 - Store image metadata in SQLite
 - Modern, responsive frontend UI
@@ -28,7 +29,7 @@ A full-stack application for generating, editing, and managing AI-generated imag
 ---
 
 ## Architecture
-- **Backend:** FastAPI, OpenAI API, SQLite, Pydantic, CORS
+- **Backend:** FastAPI, OpenAI **Responses API** (gpt-4o), SQLite, Pydantic, CORS
 - **Frontend:** React 19, Vite, Tailwind CSS, Axios
 - **Storage:** Local file storage for images, SQLite for metadata
 
@@ -37,9 +38,11 @@ A full-stack application for generating, editing, and managing AI-generated imag
 ## Backend (FastAPI)
 - Located in [`backend/app`](backend/app)
 - Exposes REST API endpoints for image generation, editing, gallery, and health checks
-- Uses OpenAI API for image generation
+- Provides streaming endpoints at `/api/generate/stream` and `/api/edit/stream`
+- Uses OpenAI **Responses API** (gpt-4o) for image generation and editing
 - Stores image metadata in SQLite (file: `backend/local_storage/image_metadata.db`)
 - Configurable via environment variables (see below)
+- Includes helper script `scripts/clear_database.py` to wipe local data
 
 ### Install dependencies
 ```bash
@@ -88,7 +91,7 @@ Create a `.env` file in the project root (or backend root) with the following va
 
 ```
 OPENAI_API_KEY=your-openai-api-key
-IMAGE_MODEL=gpt-image-1
+IMAGE_MODEL=gpt-image-1  # (currently unused; gpt-4o is hard-coded)
 STORAGE_DIR=backend/local_storage
 DB_FILENAME=image_metadata.db
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
@@ -108,6 +111,8 @@ LOG_FORMAT=plain
 - **First time setup:** run `./scripts/setup_env.sh` while your workspace still
   has network access. This installs the Python packages required for the pytest
   suite as well as the frontend dependencies so tests can run offline later.
+- To reset local images and the SQLite DB during development, run
+  `python scripts/clear_database.py` from the `backend` directory.
 
 ---
 
@@ -123,6 +128,8 @@ LOG_FORMAT=plain
     npm run dev
     ```
 3. Open your browser to `http://localhost:5173` to use the app.
+   Use the "Use streaming" toggle on the create/edit pages to switch between
+   streaming and standard API calls.
 
 ---
 
