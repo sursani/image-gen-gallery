@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException, File, UploadFile, Form, Body, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional
 import logging
+import json
+import base64
 
-from ..services.openai_service import edit_image_from_prompt, save_image_from_base64
+from ..services.openai_service import edit_image_from_prompt, edit_image_from_prompt_stream, save_image_from_base64
 from ..models.image_metadata import ImageMetadata
 from ..schemas import EditImageRequest
 
@@ -127,4 +130,118 @@ async def handle_edit_image(
         raise http_exc
     except Exception as e:
         logger.error(f"Unexpected error handling image edit request: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An unexpected error occurred during image editing.") 
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during image editing.")
+
+
+@router.post("/stream")
+async def handle_edit_image_stream(
+    prompt: str = Form(...),
+    size: str = Form("1024x1024"),
+    quality: str = Form("auto"),
+    n: int = Form(1),
+    image: UploadFile = File(...),
+    mask: Optional[UploadFile] = File(None)
+):
+    """Handles streaming image editing requests."""
+    logger.info(f"Received streaming image edit request for prompt: '{prompt}'")
+
+    # Validate request parameters
+    try:
+        edit_request = EditImageRequest(
+            prompt=prompt,
+            size=size,
+            quality=quality,
+            n=n
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    # Validate image and mask files
+    image_bytes = await validate_image_file(image)
+    mask_bytes = await validate_mask_file(mask)
+
+    async def generate():
+        """Generator function for SSE streaming."""
+        collected_image_data = []
+        try:
+            async for chunk in edit_image_from_prompt_stream(
+                prompt=edit_request.prompt,
+                image_bytes=image_bytes,
+                mask_bytes=mask_bytes,
+                size=edit_request.size,
+                quality=edit_request.quality,
+                n=edit_request.n
+            ):
+                # Send each chunk as Server-Sent Event
+                if chunk["type"] == "progress":
+                    event_data = json.dumps({
+                        "type": "progress",
+                        "data": chunk["data"]
+                    })
+                    yield f"data: {event_data}\n\n"
+                elif chunk["type"] == "image":
+                    collected_image_data.append(chunk["data"])
+                    # Send partial image data
+                    event_data = json.dumps({
+                        "type": "partial_image",
+                        "data": chunk["data"][:1000] + "..." if len(chunk["data"]) > 1000 else chunk["data"]
+                    })
+                    yield f"data: {event_data}\n\n"
+                elif chunk["type"] == "error":
+                    event_data = json.dumps({
+                        "type": "error",
+                        "error": chunk["error"]
+                    })
+                    yield f"data: {event_data}\n\n"
+                    return
+            
+            # After streaming completes, save the images
+            if collected_image_data:
+                parameters = {
+                    "model": "gpt-image-1",
+                    "size": edit_request.size,
+                    "quality": edit_request.quality,
+                    "n": edit_request.n,
+                    "type": "edit",
+                    "original_prompt": edit_request.prompt
+                }
+                saved_metadata_list = await save_image_from_base64(
+                    image_data_list=collected_image_data,
+                    prompt=edit_request.prompt,
+                    revised_prompt=None,
+                    parameters=parameters
+                )
+                
+                if saved_metadata_list:
+                    metadata_dict = saved_metadata_list[0].model_dump()
+                    metadata_dict["timestamp"] = metadata_dict["timestamp"].isoformat()
+                    event_data = json.dumps({
+                        "type": "complete",
+                        "metadata": metadata_dict,
+                        "image_data": collected_image_data[0]
+                    })
+                    yield f"data: {event_data}\n\n"
+                else:
+                    event_data = json.dumps({
+                        "type": "error",
+                        "error": "Failed to save edited image"
+                    })
+                    yield f"data: {event_data}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Error in streaming edit: {e}")
+            event_data = json.dumps({
+                "type": "error",
+                "error": str(e)
+            })
+            yield f"data: {event_data}\n\n"
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    ) 

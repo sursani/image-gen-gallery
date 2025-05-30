@@ -3,6 +3,7 @@ import './App.css'
 import Button from './components/Button'
 import GalleryView, { GalleryViewRef } from './components/GalleryView'
 import ImageGenerationForm from './components/ImageGenerationForm'
+import ImageGenerationFormStreaming from './components/ImageGenerationFormStreaming'
 import EditImageView from './views/EditImageView'
 
 const pathToView = (path: string): string => {
@@ -78,6 +79,7 @@ const styles = {
 
 function App() {
   const [activeView, setActiveView] = useState<string>(() => pathToView(window.location.pathname))
+  const [useStreaming, setUseStreaming] = useState<boolean>(true) // Default to streaming
   const galleryRef = useRef<GalleryViewRef>(null)
 
   const navigate = useCallback((view: string) => {
@@ -111,7 +113,7 @@ function App() {
       case 'gallery':
         return <GalleryView ref={galleryRef} />
       case 'create':
-        return <ImageGenerationForm />
+        return useStreaming ? <ImageGenerationFormStreaming /> : <ImageGenerationForm />
       case 'edit':
         return <EditImageView navigate={navigate} />
       default:
@@ -145,6 +147,21 @@ function App() {
               Edit Image
             </Button>
           </nav>
+          
+          {/* Streaming Toggle */}
+          {(activeView === 'create' || activeView === 'edit') && (
+            <div className="mt-4 flex justify-center items-center gap-2">
+              <label className="flex items-center gap-2 text-sm text-gray-400">
+                <input
+                  type="checkbox"
+                  checked={useStreaming}
+                  onChange={(e) => setUseStreaming(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                Enable Streaming (Progressive Loading)
+              </label>
+            </div>
+          )}
         </header>
 
         <main style={styles.main} className="flex-grow">

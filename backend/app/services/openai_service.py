@@ -7,7 +7,7 @@ import asyncio
 import aiofiles
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Tuple, List, Dict, Any, AsyncIterator
 import os
 import io
 
@@ -35,6 +35,65 @@ retry_strategy = retry(
     retry=retry_if_exception_type((RateLimitError, httpx.TimeoutException, httpx.NetworkError)),
     reraise=True # Re-raise the exception after the final attempt fails
 )
+
+async def generate_image_from_prompt_stream(
+    prompt: str,
+    size: str = "1024x1024", 
+    quality: str = "auto",
+    n: int = 1,
+) -> AsyncIterator[Dict[str, Any]]:
+    """Generate an image using the Responses API with streaming.
+    
+    Yields chunks of data as they are received from the API.
+    """
+    logger.info(
+        f"Requesting streaming image generation for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
+    )
+    try:
+        input_items = [
+            {"type": "message", "role": "user", "content": prompt}
+        ]
+        tool = {
+            "type": "image_generation",
+            "model": "gpt-image-1",
+            "size": size,
+            "quality": quality,
+        }
+
+        # Create streaming response
+        stream = await client.responses.create(
+            model="gpt-image-1",
+            input=input_items,
+            tools=[tool],
+            stream=True
+        )
+
+        # Process stream chunks
+        async for chunk in stream:
+            # For image generation, we'll yield progress updates
+            # The actual structure depends on the API response format
+            if hasattr(chunk, 'choices') and chunk.choices:
+                for choice in chunk.choices:
+                    if hasattr(choice, 'delta'):
+                        yield {
+                            "type": "progress",
+                            "data": choice.delta
+                        }
+            elif hasattr(chunk, 'output'):
+                # Final image data
+                for output in chunk.output:
+                    if getattr(output, "type", None) == "image_generation_call":
+                        yield {
+                            "type": "image",
+                            "data": output.result
+                        }
+
+    except Exception as e:
+        logger.error(f"Error in streaming image generation: {e}")
+        yield {
+            "type": "error",
+            "error": str(e)
+        }
 
 @retry_strategy
 async def generate_image_from_prompt(
@@ -97,6 +156,76 @@ async def generate_image_from_prompt(
         logger.error(f"Unexpected error during OpenAI image generation: {e}", exc_info=True)
         return None, None
 
+async def edit_image_from_prompt_stream(
+    prompt: str,
+    image_bytes: bytes,
+    mask_bytes: Optional[bytes] = None,
+    size: str = "1024x1024",
+    quality: str = "auto",
+    n: int = 1,
+) -> AsyncIterator[Dict[str, Any]]:
+    """Edit an image using the Responses API with streaming.
+    
+    Yields chunks of data as they are received from the API.
+    """
+    logger.info(
+        f"Requesting streaming image edit for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
+    )
+    try:
+        # For image editing, we need to include the image in the message content
+        image_data_url = "data:image/png;base64," + base64.b64encode(image_bytes).decode()
+        content = [
+            {"type": "input_text", "text": prompt},
+            {"type": "input_image", "image_url": image_data_url}
+        ]
+        
+        if mask_bytes:
+            mask_data_url = "data:image/png;base64," + base64.b64encode(mask_bytes).decode()
+            content.append({"type": "input_image", "image_url": mask_data_url})
+        
+        input_items = [
+            {"type": "message", "role": "user", "content": content}
+        ]
+
+        tool = {
+            "type": "image_generation",
+            "model": "gpt-image-1",
+            "size": size,
+            "quality": quality,
+        }
+
+        # Create streaming response
+        stream = await client.responses.create(
+            model="gpt-image-1",
+            input=input_items,
+            tools=[tool],
+            stream=True
+        )
+
+        # Process stream chunks
+        async for chunk in stream:
+            if hasattr(chunk, 'choices') and chunk.choices:
+                for choice in chunk.choices:
+                    if hasattr(choice, 'delta'):
+                        yield {
+                            "type": "progress",
+                            "data": choice.delta
+                        }
+            elif hasattr(chunk, 'output'):
+                for output in chunk.output:
+                    if getattr(output, "type", None) == "image_generation_call":
+                        yield {
+                            "type": "image",
+                            "data": output.result
+                        }
+
+    except Exception as e:
+        logger.error(f"Error in streaming image edit: {e}")
+        yield {
+            "type": "error",
+            "error": str(e)
+        }
+
 @retry_strategy
 async def edit_image_from_prompt(
     prompt: str,
@@ -123,23 +252,20 @@ async def edit_image_from_prompt(
     logger.info(
         f"Requesting image edit for prompt: '{prompt}' with size={size}, quality={quality}, n={n}")
     try:
-        input_items = [
-            {"type": "message", "role": "user", "content": prompt},
-            {
-                "type": "input_image",
-                "image_url": "data:image/png;base64," + base64.b64encode(image_bytes).decode(),
-                "detail": "auto",
-            },
+        # For image editing, we need to include the image in the message content
+        image_data_url = "data:image/png;base64," + base64.b64encode(image_bytes).decode()
+        content = [
+            {"type": "input_text", "text": prompt},
+            {"type": "input_image", "image_url": image_data_url}
         ]
-
+        
         if mask_bytes:
-            input_items.append(
-                {
-                    "type": "input_image",
-                    "image_url": "data:image/png;base64," + base64.b64encode(mask_bytes).decode(),
-                    "detail": "auto",
-                }
-            )
+            mask_data_url = "data:image/png;base64," + base64.b64encode(mask_bytes).decode()
+            content.append({"type": "input_image", "image_url": mask_data_url})
+        
+        input_items = [
+            {"type": "message", "role": "user", "content": content}
+        ]
 
         tool = {
             "type": "image_generation",
