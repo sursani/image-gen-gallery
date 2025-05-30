@@ -25,14 +25,18 @@ from ..models.image_metadata import ImageMetadata
 # Constants & logger
 # ---------------------------------------------------------------------------
 
-# Compute the path relative to the *backend* directory regardless of the
-# current working directory.  The layout is `<repo_root>/backend/local_storage`.
-BASE_DIR = Path(settings.storage_dir).resolve()
-DATABASE_PATH = str(BASE_DIR / settings.db_filename)
-
 logger = logging.getLogger(__name__)
 
 SortOrder = Literal["newest", "oldest"]
+
+# ---------------------------------------------------------------------------
+# Helper functions to get paths dynamically
+# ---------------------------------------------------------------------------
+
+def _get_database_path() -> str:
+    """Get the database path dynamically based on current settings."""
+    base_dir = Path(settings.storage_dir).resolve()
+    return str(base_dir / settings.db_filename)
 
 # ---------------------------------------------------------------------------
 # Internal helpers (run in a background thread)
@@ -40,10 +44,12 @@ SortOrder = Literal["newest", "oldest"]
 
 
 def _connect() -> sqlite3.Connection:
+    # Get database path dynamically
+    database_path = _get_database_path()
     # Ensure parent directory exists (e.g. backend/local_storage)
-    Path(DATABASE_PATH).parent.mkdir(parents=True, exist_ok=True)
+    Path(database_path).parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
+    conn = sqlite3.connect(database_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -75,7 +81,7 @@ async def initialize_database() -> None:
             conn.close()
 
     await asyncio.to_thread(_init)
-    logger.info("Database initialised at %s", DATABASE_PATH)
+    logger.info("Database initialised at %s", _get_database_path())
 
 
 async def save_image_metadata(metadata: ImageMetadata) -> str:

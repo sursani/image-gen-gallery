@@ -8,6 +8,7 @@ vi.mock('../components/GalleryView', () => ({
   default: React.forwardRef(() => <div data-testid="gallery">Gallery</div>) 
 }));
 vi.mock('../components/ImageGenerationForm', () => ({ default: () => <div data-testid="create">Create</div> }));
+vi.mock('../components/ImageGenerationFormStreaming', () => ({ default: () => <div data-testid="create">Create Streaming</div> }));
 vi.mock('../views/EditImageView', () => ({ default: () => <div data-testid="edit">Edit</div> }));
 
 describe('App top-level routing & navigation', () => {

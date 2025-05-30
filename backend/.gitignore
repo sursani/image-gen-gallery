@@ -19,6 +19,12 @@ env/
 # Local Storage
 local_storage/
 
+# Testing
+.pytest_cache/
+pytest-of-*/
+.coverage
+htmlcov/
+
 # Added by Claude Task Master
 # Logs
 logs

@@ -1,15 +1,14 @@
 import logging
 import httpx
 import base64
-from openai import OpenAI, AsyncOpenAI, APIError, RateLimitError
+from openai import AsyncOpenAI, APIError, RateLimitError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 import asyncio
 import aiofiles
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Tuple, List, Dict, Any, AsyncIterator
 import os
-import io
 
 from ..core.settings import settings
 from ..models.image_metadata import ImageMetadata
@@ -20,9 +19,13 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 
 
-# Path to the directory where images will be stored (inside the storage
-# dir specified in Settings).
-IMAGE_STORAGE_PATH = Path(settings.storage_dir) / "images"
+def _get_image_storage_path() -> Path:
+    """Get the image storage path dynamically based on current settings."""
+    return Path(settings.storage_dir) / "images"
+
+
+# No additional helpers required – we assume the SDK function is asynchronous
+# and therefore *must* be awaited.  Unit-test stubs should also be async.
 
 # Configure OpenAI client
 # Consider using AsyncOpenAI for FastAPI
@@ -36,77 +39,132 @@ retry_strategy = retry(
     reraise=True # Re-raise the exception after the final attempt fails
 )
 
+async def generate_image_from_prompt_stream(
+    prompt: str,
+    size: str = "1024x1024",
+    quality: str = "auto",
+    n: int = 1,
+) -> AsyncIterator[Dict[str, Any]]:
+    """Generate an image and stream intermediary events.
+
+    Streams events from OpenAI's Responses API including progress updates
+    and the final generated image.
+    """
+
+    logger.info(
+        f"Requesting streaming image generation for prompt: '{prompt}' with size={size}, n={n}"
+    )
+
+    # Tell client we accepted the request
+    yield {"type": "progress", "data": {"status": "started"}}
+
+    try:
+        # Stream using `stream=True` (SDK returns an async iterator)
+        stream = await client.responses.create(
+            model="gpt-4o",
+            input=[{"type": "message", "role": "user", "content": prompt}],
+            tools=[{"type": "image_generation", "size": size, "quality": quality}],
+            stream=True,
+        )
+
+        async for event in stream:
+            ev_type = event.type
+            
+            # Log the event type for debugging
+            logger.info(f"Received streaming event: type={ev_type}")
+
+            # Handle progress events
+            if ev_type == "response.in_progress":
+                yield {"type": "progress", "data": {"status": "processing"}}
+            elif ev_type == "response.image_generation_call.generating":
+                yield {"type": "progress", "data": {"status": "generating"}}
+            elif ev_type == "response.completed":
+                # The final response contains the complete data including images
+                logger.info("Streaming response completed - extracting image data")
+                
+                # Extract the response data
+                if hasattr(event, 'response') and hasattr(event.response, 'output'):
+                    for output_item in event.response.output:
+                        # Look for image generation calls in the output
+                        if (hasattr(output_item, 'type') and 
+                            output_item.type == 'image_generation_call' and
+                            hasattr(output_item, 'result')):
+                            
+                            logger.info("Found image generation call with result")
+                            result = output_item.result
+                            
+                            # The result is the base64 image data string directly
+                            if isinstance(result, str) and result:
+                                logger.info(f"Found image data in result (length: {len(result)} chars)")
+                                # Yield image data for collection by route handler
+                                yield {
+                                    "type": "image", 
+                                    "data": result
+                                }
+                                return
+                            else:
+                                logger.warning(f"Result is not a string or is empty: {type(result)}, length: {len(result) if hasattr(result, '__len__') else 'N/A'}")
+                
+                # If no image found in the expected structure, log the response structure
+                logger.warning("No image data found in completed response")
+                if hasattr(event, 'response'):
+                    logger.info(f"Response structure: {type(event.response)}")
+                    if hasattr(event.response, 'output'):
+                        logger.info(f"Output length: {len(event.response.output)}")
+                        for i, item in enumerate(event.response.output):
+                            logger.info(f"Output item {i}: type={getattr(item, 'type', 'unknown')}")
+                            if hasattr(item, 'result'):
+                                logger.info(f"  Result type: {type(item.result)}, length: {len(item.result) if hasattr(item.result, '__len__') else 'N/A'}")
+
+        logger.info("Streaming response completed")
+
+    except Exception as e:
+        logger.error(f"Error during streaming image generation: {e}", exc_info=True)
+        yield {"type": "error", "data": {"error": str(e)}}
+        raise
+
 @retry_strategy
 async def generate_image_from_prompt(
     prompt: str,
-    model: str = "gpt-image-1", # Default to gpt-image-1
-    size: str = "1024x1024", # Default size
-    quality: str = "auto", # Default quality for gpt-image-1
-    n: int = 1, # Default number of images
-    style: str = None # Only for dall-e-3
+    size: str = "1024x1024",
+    quality: str = "auto",
+    n: int = 1,
 ) -> tuple[Optional[List[str]], Optional[str]]:
-    """
-    Generates an image using OpenAI's API with retry logic.
+    """Generate an image using the Responses API.
 
-    Args:
-        prompt: The text prompt for image generation.
-        model: The model to use (e.g., "gpt-image-1", "dall-e-3", "dall-e-2").
-        size: The desired size of the image (model-specific).
-        quality: The quality setting (model-specific).
-        n: The number of images to generate (model-specific).
-        style: The style parameter (only for dall-e-3).
-
-    Returns:
-        A tuple containing:
-            - A list of base64 encoded image data (if successful).
-            - The revised prompt from OpenAI (if provided).
-        Returns (None, None) on failure after retries.
+    Uses the ``gpt-4o`` model with the hosted ``image_generation`` tool.
     """
-    logger.info(f"Requesting image generation for prompt: '{prompt}' with model={model}, size={size}, quality={quality}, n={n}")
+    logger.info(
+        f"Requesting image generation for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
+    )
     try:
-        # Build API parameters based on model
-        api_params = {
-            "model": model,
-            "prompt": prompt,
-            "size": size,
-            "n": n,
-        }
-        
-        # Add model-specific parameters
-        if model == "gpt-image-1" and quality:
-            api_params["quality"] = quality
-        elif model == "dall-e-3":
-            if quality:
-                api_params["quality"] = quality
-            if style:
-                api_params["style"] = style
-            # n is enforced as 1 for DALL-E 3
-            api_params["n"] = 1
-            
-        response = await client.images.generate(**api_params)
-        
-        # Extract base64 data from response (or URL for DALL-E 2/3 if b64_json wasn't specified)
-        image_data_list = []
-        for item in response.data:
-            if hasattr(item, 'b64_json') and item.b64_json:
-                image_data_list.append(item.b64_json)
-            elif hasattr(item, 'url') and item.url:
-                # For models that return URLs instead of base64 data by default
-                # We'll need to download the image
-                async with httpx.AsyncClient(timeout=30.0) as http_client:
-                    img_response = await http_client.get(item.url)
-                    if img_response.status_code == 200:
-                        # Convert to base64
-                        image_data = base64.b64encode(img_response.content).decode('utf-8')
-                        image_data_list.append(image_data)
-        
-        revised_prompt = response.data[0].revised_prompt if response.data and hasattr(response.data[0], 'revised_prompt') else None
-        
-        logger.info(f"Image(s) generated successfully. Number of images: {len(image_data_list)}")
-        if revised_prompt and revised_prompt != prompt:
-             logger.info(f"OpenAI revised prompt: '{revised_prompt}'")
-             
-        return image_data_list, revised_prompt
+        # ---------------- Use OpenAI Responses API ----------------
+
+        def _build_args() -> dict:
+            return dict(
+                model="gpt-4o",
+                input=[{"type": "message", "role": "user", "content": prompt}],
+                tools=[{
+                    "type": "image_generation",
+                    "size": size,
+                }],
+            )
+
+        response = await client.responses.create(**_build_args())
+        # Handle both SDK and legacy responses mock structure
+        # The Responses API returns `output`, each with `.result` (base-64)
+        if hasattr(response, "output"):
+            image_data_list = [
+                item.result for item in response.output if getattr(item, "result", None)
+            ]
+        else:
+            image_data_list = []
+
+        logger.info(
+            f"Image(s) generated successfully. Number of images: {len(image_data_list)}"
+        )
+
+        return image_data_list, None
 
     except RateLimitError as e:
         logger.warning(f"OpenAI rate limit hit during image generation: {e}. Retrying...")
@@ -125,23 +183,59 @@ async def generate_image_from_prompt(
         logger.error(f"Unexpected error during OpenAI image generation: {e}", exc_info=True)
         return None, None
 
+async def edit_image_from_prompt_stream(
+    prompt: str,
+    image_bytes: bytes,
+    mask_bytes: Optional[bytes] = None,
+    size: str = "1024x1024",
+    quality: str = "auto",
+    n: int = 1,
+) -> AsyncIterator[Dict[str, Any]]:
+    """Edit an image using the Responses API with streaming.
+    
+    Yields chunks of data as they are received from the API.
+    """
+    logger.info(
+        f"Requesting streaming image edit for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
+    )
+    try:
+        # Pseudo-streaming: yield start event, then the final image after edit.
+        yield {"type": "progress", "data": {"status": "started"}}
+
+        image_data_list = await edit_image_from_prompt(
+            prompt=prompt,
+            image_bytes=image_bytes,
+            mask_bytes=mask_bytes,
+            size=size,
+            quality=quality,
+            n=n,
+        )
+
+        if image_data_list and len(image_data_list) > 0:
+            yield {"type": "image", "data": image_data_list[0]}
+
+    except Exception as e:
+        logger.error(f"Error in streaming image edit: {e}")
+        yield {
+            "type": "error",
+            "error": str(e)
+        }
+
 @retry_strategy
 async def edit_image_from_prompt(
     prompt: str,
     image_bytes: bytes,
-    model: str = "gpt-image-1", # Default to gpt-image-1
     mask_bytes: Optional[bytes] = None,
-    size: str = "1024x1024", # gpt-image-1 supports various sizes
-    quality: str = "auto", # Default quality for gpt-image-1 (not used in API call)
-    n: int = 1 # Number of output images
-) -> Optional[List[str]]: # Returns list of base64 image data or None
+    size: str = "1024x1024",
+    quality: str = "auto",
+    n: int = 1,
+) -> Optional[List[str]]:
     """
     Edit an image using OpenAI's API with retry logic.
 
     Args:
         prompt: The text prompt describing the desired edit.
         image_bytes: The image data to edit (PNG format).
-        model: The model to use (e.g., "gpt-image-1", "dall-e-2").
         mask_bytes: Optional mask data (PNG format) indicating areas to edit.
         size: The desired size of the edited image.
         quality: The quality setting (kept for compatibility, not used in edit API).
@@ -151,40 +245,43 @@ async def edit_image_from_prompt(
         A list of base64 encoded edited image data, or None on failure after retries.
     """
     logger.info(
-        f"Requesting image edit for prompt: '{prompt}' with model={model}, size={size}, quality={quality}, n={n}")
+        f"Requesting image edit for prompt: '{prompt}' with size={size}, quality={quality}, n={n}")
     try:
-        # Prepare image parameter
-        image_param = ("image.png", image_bytes, "image/png")
-        
-        # Note: response_format parameter is not supported by images.edit API, only by images.generate
-        api_params = {
-            "model": model,
-            "image": image_param,
-            "prompt": prompt,
-            "size": size,
-            "n": n
-        }
-            
-        if mask_bytes:
-            mask_param = ("mask.png", mask_bytes, "image/png")
-            api_params["mask"] = mask_param
-            
-        response = await client.images.edit(**api_params)
+        # Build input content with base64 embedded images according to
+        # Responses API image editing spec.
 
-        # Extract base64 data from response
-        image_data_list = []
-        for item in response.data:
-            if hasattr(item, 'b64_json') and item.b64_json:
-                image_data_list.append(item.b64_json)
-            elif hasattr(item, 'url') and item.url:
-                # For models that return URLs instead of base64 data by default
-                # We'll need to download the image
-                async with httpx.AsyncClient(timeout=30.0) as http_client:
-                    img_response = await http_client.get(item.url)
-                    if img_response.status_code == 200:
-                        # Convert to base64
-                        image_data = base64.b64encode(img_response.content).decode('utf-8')
-                        image_data_list.append(image_data)
+        content = [
+            {"type": "input_text", "text": prompt},
+            {
+                "type": "input_image",
+                "image_url": "data:image/png;base64," + base64.b64encode(image_bytes).decode(),
+            },
+        ]
+        if mask_bytes:
+            content.append(
+                {
+                    "type": "input_image",
+                    "image_url": "data:image/png;base64," + base64.b64encode(mask_bytes).decode(),
+                }
+            )
+
+        args = dict(
+            model="gpt-4o",
+            input=[{"type": "message", "role": "user", "content": content}],
+            tools=[{
+                "type": "image_generation",
+                "size": size,
+            }],
+        )
+
+        response = await client.responses.create(**args)
+
+        if hasattr(response, "output"):
+            image_data_list = [
+                item.result for item in response.output if getattr(item, "result", None)
+            ]
+        else:
+            image_data_list = []
 
         logger.info(
             f"Image(s) edited successfully. Number of images: {len(image_data_list)}"
@@ -229,7 +326,7 @@ async def save_image_from_base64(
     metadata_list = []
     try:
         # Ensure the directory exists
-        os.makedirs(IMAGE_STORAGE_PATH, exist_ok=True)
+        os.makedirs(_get_image_storage_path(), exist_ok=True)
 
         for idx, image_data in enumerate(image_data_list):
             # Decode base64 data
@@ -238,7 +335,7 @@ async def save_image_from_base64(
             # Generate a unique filename
             file_extension = ".png" # Default for gpt-image-1
             filename = f"{uuid.uuid4()}_{idx}{file_extension}"
-            save_path = os.path.join(IMAGE_STORAGE_PATH, filename)
+            save_path = os.path.join(_get_image_storage_path(), filename)
             
             # Save the image content asynchronously
             async with aiofiles.open(save_path, 'wb') as f:
@@ -270,7 +367,7 @@ async def save_image_from_base64(
         logger.error(f"Unexpected error saving image(s): {e}", exc_info=True)
         # Clean up partially saved files if any
         for metadata in metadata_list:
-            save_path = os.path.join(IMAGE_STORAGE_PATH, metadata.filename)
+            save_path = os.path.join(_get_image_storage_path(), metadata.filename)
             if os.path.exists(save_path):
                 try:
                     os.remove(save_path)
@@ -304,10 +401,10 @@ async def download_and_save_image(
         # Determine extension based on URL or response headers if possible, default to .png
         file_extension = ".png" # Default, OpenAI URLs often don't have extensions
         filename = f"{uuid.uuid4()}{file_extension}"
-        save_path = os.path.join(IMAGE_STORAGE_PATH, filename)
+        save_path = os.path.join(_get_image_storage_path(), filename)
         
         # Ensure the directory exists
-        os.makedirs(IMAGE_STORAGE_PATH, exist_ok=True)
+        os.makedirs(_get_image_storage_path(), exist_ok=True)
 
         # Use httpx.AsyncClient for async download
         async with httpx.AsyncClient() as http_client:

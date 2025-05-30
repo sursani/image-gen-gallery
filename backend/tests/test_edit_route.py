@@ -28,14 +28,14 @@ def mock_openai_edit(mocker):
     fake_png_b64 = base64.b64encode(b"EDITEDPNGDATA").decode()
 
     class _Item:
-        b64_json = fake_png_b64
-        revised_prompt = None
+        type = "image_generation_call"
+        result = fake_png_b64
 
-    async def _fake_edit(**kwargs):
-        return type("Resp", (), {"data": [_Item()]})
+    async def _fake_create(**kwargs):
+        return type("Resp", (), {"output": [_Item()]})
 
     mocker.patch(
-        "backend.app.services.openai_service.client.images.edit", _fake_edit
+        "backend.app.services.openai_service.client.responses.create", _fake_create
     )
 
 
