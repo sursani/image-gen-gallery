@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 
 
-# Path to the directory where images will be stored (inside the storage
-# dir specified in Settings).
-IMAGE_STORAGE_PATH = Path(settings.storage_dir) / "images"
+def _get_image_storage_path() -> Path:
+    """Get the image storage path dynamically based on current settings."""
+    return Path(settings.storage_dir) / "images"
 
 
 # No additional helpers required – we assume the SDK function is asynchronous
@@ -47,36 +47,81 @@ async def generate_image_from_prompt_stream(
 ) -> AsyncIterator[Dict[str, Any]]:
     """Generate an image and stream intermediary events.
 
-    The official OpenAI Images API does **not** currently support true server-side
-    streaming. Instead, we mimic streaming behaviour by immediately yielding a
-    *start* progress event, awaiting the synchronous image generation call, and
-    finally yielding the generated image data.
+    Streams events from OpenAI's Responses API including progress updates
+    and the final generated image.
     """
 
     logger.info(
-        f"Requesting (pseudo-stream) image generation for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
+        f"Requesting streaming image generation for prompt: '{prompt}' with size={size}, n={n}"
     )
 
-    # Initial progress event so the client knows the request was accepted.
+    # Tell client we accepted the request
     yield {"type": "progress", "data": {"status": "started"}}
 
     try:
-        image_data_list, _ = await generate_image_from_prompt(
-            prompt=prompt,
-            size=size,
-            quality=quality,
-            n=n,
+        # Stream using `stream=True` (SDK returns an async iterator)
+        stream = await client.responses.create(
+            model="gpt-4o",
+            input=[{"type": "message", "role": "user", "content": prompt}],
+            tools=[{"type": "image_generation", "size": size, "quality": quality}],
+            stream=True,
         )
 
-        if not image_data_list:
-            raise RuntimeError("OpenAI image generation returned no data")
+        async for event in stream:
+            ev_type = event.type
+            
+            # Log the event type for debugging
+            logger.info(f"Received streaming event: type={ev_type}")
 
-        # Yield the first image (only one currently generated)
-        yield {"type": "image", "data": image_data_list[0]}
+            # Handle progress events
+            if ev_type == "response.in_progress":
+                yield {"type": "progress", "data": {"status": "processing"}}
+            elif ev_type == "response.image_generation_call.generating":
+                yield {"type": "progress", "data": {"status": "generating"}}
+            elif ev_type == "response.completed":
+                # The final response contains the complete data including images
+                logger.info("Streaming response completed - extracting image data")
+                
+                # Extract the response data
+                if hasattr(event, 'response') and hasattr(event.response, 'output'):
+                    for output_item in event.response.output:
+                        # Look for image generation calls in the output
+                        if (hasattr(output_item, 'type') and 
+                            output_item.type == 'image_generation_call' and
+                            hasattr(output_item, 'result')):
+                            
+                            logger.info("Found image generation call with result")
+                            result = output_item.result
+                            
+                            # The result is the base64 image data string directly
+                            if isinstance(result, str) and result:
+                                logger.info(f"Found image data in result (length: {len(result)} chars)")
+                                # Yield image data for collection by route handler
+                                yield {
+                                    "type": "image", 
+                                    "data": result
+                                }
+                                return
+                            else:
+                                logger.warning(f"Result is not a string or is empty: {type(result)}, length: {len(result) if hasattr(result, '__len__') else 'N/A'}")
+                
+                # If no image found in the expected structure, log the response structure
+                logger.warning("No image data found in completed response")
+                if hasattr(event, 'response'):
+                    logger.info(f"Response structure: {type(event.response)}")
+                    if hasattr(event.response, 'output'):
+                        logger.info(f"Output length: {len(event.response.output)}")
+                        for i, item in enumerate(event.response.output):
+                            logger.info(f"Output item {i}: type={getattr(item, 'type', 'unknown')}")
+                            if hasattr(item, 'result'):
+                                logger.info(f"  Result type: {type(item.result)}, length: {len(item.result) if hasattr(item.result, '__len__') else 'N/A'}")
+
+        logger.info("Streaming response completed")
 
     except Exception as e:
-        logger.error(f"Error in streaming image generation: {e}")
-        yield {"type": "error", "error": str(e)}
+        logger.error(f"Error during streaming image generation: {e}", exc_info=True)
+        yield {"type": "error", "data": {"error": str(e)}}
+        raise
 
 @retry_strategy
 async def generate_image_from_prompt(
@@ -281,7 +326,7 @@ async def save_image_from_base64(
     metadata_list = []
     try:
         # Ensure the directory exists
-        os.makedirs(IMAGE_STORAGE_PATH, exist_ok=True)
+        os.makedirs(_get_image_storage_path(), exist_ok=True)
 
         for idx, image_data in enumerate(image_data_list):
             # Decode base64 data
@@ -290,7 +335,7 @@ async def save_image_from_base64(
             # Generate a unique filename
             file_extension = ".png" # Default for gpt-image-1
             filename = f"{uuid.uuid4()}_{idx}{file_extension}"
-            save_path = os.path.join(IMAGE_STORAGE_PATH, filename)
+            save_path = os.path.join(_get_image_storage_path(), filename)
             
             # Save the image content asynchronously
             async with aiofiles.open(save_path, 'wb') as f:
@@ -322,7 +367,7 @@ async def save_image_from_base64(
         logger.error(f"Unexpected error saving image(s): {e}", exc_info=True)
         # Clean up partially saved files if any
         for metadata in metadata_list:
-            save_path = os.path.join(IMAGE_STORAGE_PATH, metadata.filename)
+            save_path = os.path.join(_get_image_storage_path(), metadata.filename)
             if os.path.exists(save_path):
                 try:
                     os.remove(save_path)
@@ -356,10 +401,10 @@ async def download_and_save_image(
         # Determine extension based on URL or response headers if possible, default to .png
         file_extension = ".png" # Default, OpenAI URLs often don't have extensions
         filename = f"{uuid.uuid4()}{file_extension}"
-        save_path = os.path.join(IMAGE_STORAGE_PATH, filename)
+        save_path = os.path.join(_get_image_storage_path(), filename)
         
         # Ensure the directory exists
-        os.makedirs(IMAGE_STORAGE_PATH, exist_ok=True)
+        os.makedirs(_get_image_storage_path(), exist_ok=True)
 
         # Use httpx.AsyncClient for async download
         async with httpx.AsyncClient() as http_client:

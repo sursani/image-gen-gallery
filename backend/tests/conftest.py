@@ -4,6 +4,9 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 
+# Configure pytest-asyncio to suppress deprecation warning
+pytest_asyncio.asyncio_default_fixture_loop_scope = "function"
+
 # App import must happen after we tweak settings via monkeypatch (storage
 # dir), so we wrap it inside a fixture.
 
@@ -22,20 +25,7 @@ async def tmp_storage_dir(tmp_path, monkeypatch):
     # 1. Point settings to the temp directory
     monkeypatch.setattr(settings, "storage_dir", str(tmp_path))
 
-    # 2. Ensure modules that cached the path are updated
-    import importlib
-    from backend.app.services import openai_service
-    from backend.app.routes import image_routes
-
-    openai_service.IMAGE_STORAGE_PATH = (
-        tmp_path / "images"
-    )  # type: ignore[attr-defined]
-    
-    image_routes.IMAGE_STORAGE_PATH = (
-        tmp_path / "images"
-    )  # type: ignore[attr-defined]
-
-    # 3. Re-initialise DB at new location
+    # 2. Re-initialise DB at new location
     from backend.app.services import image_service
 
     await image_service.initialize_database()

@@ -42,7 +42,7 @@ export const generateImage = async (requestData: GenerateImageRequest): Promise<
 
 // Streaming types
 export interface StreamEvent {
-  type: 'progress' | 'partial_image' | 'complete' | 'error';
+  type: 'progress' | 'image' | 'complete' | 'error';
   data?: any;
   metadata?: GenerateImageResponse;
   image_data?: string;
@@ -66,6 +66,7 @@ export const generateImageStream = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
       },
       body: JSON.stringify(requestData),
       signal: abortController.signal,
@@ -82,23 +83,28 @@ export const generateImageStream = async (
       throw new Error('No response body');
     }
 
-    // Process the stream
+    // Accumulate text across chunks so we don't break lines mid-way
     (async () => {
+      let buffer = '';
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+          buffer += decoder.decode(value, { stream: true });
 
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
+          let delimiterIndex;
+          while ((delimiterIndex = buffer.indexOf('\n\n')) !== -1) {
+            const rawEvent = buffer.slice(0, delimiterIndex).trim();
+            buffer = buffer.slice(delimiterIndex + 2);
+
+            if (rawEvent.startsWith('data: ')) {
+              const jsonStr = rawEvent.slice(6);
               try {
-                const data = JSON.parse(line.slice(6));
-                onEvent(data);
+                const evt: StreamEvent = JSON.parse(jsonStr);
+                onEvent(evt);
               } catch (e) {
-                console.error('Error parsing SSE data:', e);
+                console.error('Error parsing SSE JSON:', e);
               }
             }
           }

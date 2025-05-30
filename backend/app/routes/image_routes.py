@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 # Storage path based on settings
 from ..core.settings import settings
 
-# Use Path for join and ensure the directory exists.
-IMAGE_STORAGE_PATH = Path(settings.storage_dir) / "images"
+def _get_image_storage_path() -> Path:
+    """Get the image storage path dynamically based on current settings."""
+    return Path(settings.storage_dir) / "images"
 
 @router.get("/", response_model=List[ImageMetadata])
 async def get_images(
@@ -55,7 +56,7 @@ async def get_image_by_filename(filename: str):
             raise HTTPException(status_code=400, detail="Invalid image reference")
             
         # Use the Path object for joining
-        file_path = IMAGE_STORAGE_PATH / filename
+        file_path = _get_image_storage_path() / filename
 
         # Check existence using the Path object
         if not file_path.is_file():
@@ -105,7 +106,7 @@ async def get_image_file(image_id: str):
              raise HTTPException(status_code=400, detail="Invalid image reference")
              
         # Use the Path object for joining
-        file_path = IMAGE_STORAGE_PATH / filename
+        file_path = _get_image_storage_path() / filename
 
         # Check existence using the Path object
         if not file_path.is_file():

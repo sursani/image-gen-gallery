@@ -92,7 +92,7 @@ async def handle_generate_image_stream(request: GenerateImageRequest = Body(...)
                     # Send partial image data (could be used for progressive rendering)
                     event_data = json.dumps({
                         "type": "partial_image",
-                        "data": chunk["data"][:1000] + "..." if len(chunk["data"]) > 1000 else chunk["data"]
+                        "data": chunk["data"]
                     })
                     yield f"data: {event_data}\n\n"
                 elif chunk["type"] == "error":
@@ -106,7 +106,7 @@ async def handle_generate_image_stream(request: GenerateImageRequest = Body(...)
             # After streaming completes, save the images
             if collected_image_data:
                 parameters = {
-                    "model": "gpt-image-1",
+                    "model": "gpt-4o",
                     "size": request.size,
                     "quality": request.quality,
                     "n": request.n
