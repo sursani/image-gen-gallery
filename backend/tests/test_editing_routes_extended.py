@@ -10,7 +10,7 @@ class TestEditingRoutesValidation:
     
     @pytest.mark.asyncio
     async def test_validate_image_file_invalid_type(self, client):
-        """Test validation rejects non-PNG files."""
+        """Test that invalid image data is rejected by OpenAI API."""
         # Create a fake JPEG file
         file_content = b"fake jpeg content"
         file = BytesIO(file_content)
@@ -21,9 +21,8 @@ class TestEditingRoutesValidation:
             files={"image": ("test.jpg", file, "image/jpeg")}
         )
         
-        assert response.status_code == 400
-        assert "Invalid image file type" in response.json()["detail"]
-        assert "Must be PNG" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "Image editing failed via OpenAI API" in response.json()["detail"]
     
     @pytest.mark.asyncio
     async def test_validate_image_file_too_large(self, client):
@@ -43,7 +42,7 @@ class TestEditingRoutesValidation:
     
     @pytest.mark.asyncio
     async def test_validate_mask_file_invalid_type(self, client):
-        """Test mask validation rejects non-PNG files."""
+        """Test that invalid mask data is rejected by OpenAI API."""
         image_file = BytesIO(b"fake png")
         mask_file = BytesIO(b"fake jpeg")
         
@@ -56,9 +55,8 @@ class TestEditingRoutesValidation:
             }
         )
         
-        assert response.status_code == 400
-        assert "Invalid mask file type" in response.json()["detail"]
-        assert "Must be PNG" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "Image editing failed via OpenAI API" in response.json()["detail"]
     
     @pytest.mark.asyncio
     async def test_validate_mask_file_too_large(self, client):

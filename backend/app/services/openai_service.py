@@ -59,14 +59,23 @@ async def generate_image_from_prompt_stream(
     yield {"type": "progress", "data": {"status": "started"}}
 
     try:
+        # Map quality to OpenAI's expected values - Responses API accepts 'auto' directly
+        openai_quality = quality
+        
         # Stream using `stream=True` (SDK returns an async iterator)
         stream = await client.responses.create(
             model="gpt-4o",
             input=[{"type": "message", "role": "user", "content": prompt}],
-            tools=[{"type": "image_generation", "size": size, "quality": quality}],
+            tools=[{
+                "type": "image_generation",
+                "size": size, 
+                "quality": openai_quality,
+                "partial_images": 3  # Request 3 partial images during generation
+            }],
             stream=True,
         )
 
+        partial_count = 0
         async for event in stream:
             ev_type = event.type
             
@@ -78,6 +87,24 @@ async def generate_image_from_prompt_stream(
                 yield {"type": "progress", "data": {"status": "processing"}}
             elif ev_type == "response.image_generation_call.generating":
                 yield {"type": "progress", "data": {"status": "generating"}}
+            elif ev_type == "response.image_generation_call.partial_image":
+                # Handle partial image events
+                partial_count += 1
+                logger.info(f"Received partial image {partial_count}")
+                
+                # Debug: log what fields the event has
+                logger.info(f"Event fields: {dir(event)}")
+                
+                if hasattr(event, 'partial_image_b64'):
+                    partial_data = event.partial_image_b64
+                    logger.info(f"Found partial_image_b64, length: {len(partial_data)}")
+                    yield {
+                        "type": "partial_image",
+                        "data": partial_data,
+                        "index": partial_count
+                    }
+                else:
+                    logger.warning("Partial image event missing image data")
             elif ev_type == "response.completed":
                 # The final response contains the complete data including images
                 logger.info("Streaming response completed - extracting image data")
@@ -96,7 +123,7 @@ async def generate_image_from_prompt_stream(
                             # The result is the base64 image data string directly
                             if isinstance(result, str) and result:
                                 logger.info(f"Found image data in result (length: {len(result)} chars)")
-                                # Yield image data for collection by route handler
+                                # Yield final image data
                                 yield {
                                     "type": "image", 
                                     "data": result
@@ -199,23 +226,85 @@ async def edit_image_from_prompt_stream(
         f"Requesting streaming image edit for prompt: '{prompt}' with size={size}, quality={quality}, n={n}"
     )
     try:
-        # Pseudo-streaming: yield start event, then the final image after edit.
+        # Tell client we accepted the request
         yield {"type": "progress", "data": {"status": "started"}}
 
-        image_data_list = await edit_image_from_prompt(
-            prompt=prompt,
-            image_bytes=image_bytes,
-            mask_bytes=mask_bytes,
-            size=size,
-            quality=quality,
-            n=n,
+        # Convert bytes to base64
+        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+        
+        # Prepare the input with correct Responses API format for image editing
+        message_content = [
+            {"type": "input_text", "text": prompt},
+            {"type": "input_image", "image_url": f"data:image/png;base64,{image_b64}"}
+        ]
+        
+        # Add mask if provided
+        if mask_bytes:
+            mask_b64 = base64.b64encode(mask_bytes).decode("utf-8")
+            message_content.append({
+                "type": "input_image", 
+                "image_url": f"data:image/png;base64,{mask_b64}"
+            })
+
+        # Stream using the Responses API
+        stream = await client.responses.create(
+            model="gpt-4o",
+            input=[{
+                "type": "message",
+                "role": "user",
+                "content": message_content
+            }],
+            tools=[{
+                "type": "image_generation",
+                "size": size,
+                "quality": quality,
+                "partial_images": 3  # Request partial images
+            }],
+            stream=True,
         )
 
-        if image_data_list and len(image_data_list) > 0:
-            yield {"type": "image", "data": image_data_list[0]}
+        partial_count = 0
+        async for event in stream:
+            ev_type = event.type
+            logger.info(f"Received streaming event: type={ev_type}")
+
+            if ev_type == "response.in_progress":
+                yield {"type": "progress", "data": {"status": "processing"}}
+            elif ev_type == "response.image_generation_call.generating":
+                yield {"type": "progress", "data": {"status": "generating"}}
+            elif ev_type == "response.image_generation_call.partial_image":
+                # Handle partial image events
+                partial_count += 1
+                logger.info(f"Received partial image {partial_count}")
+                
+                # Debug: log what fields the event has
+                logger.info(f"Event fields: {dir(event)}")
+                
+                if hasattr(event, 'partial_image_b64'):
+                    partial_data = event.partial_image_b64
+                    logger.info(f"Found partial_image_b64, length: {len(partial_data)}")
+                    yield {
+                        "type": "partial_image",
+                        "data": partial_data,
+                        "index": partial_count
+                    }
+                else:
+                    logger.warning("Partial image event missing image data")
+            elif ev_type == "response.completed":
+                # Extract final image
+                if hasattr(event, 'response') and hasattr(event.response, 'output'):
+                    for output_item in event.response.output:
+                        if (hasattr(output_item, 'type') and 
+                            output_item.type == 'image_generation_call' and
+                            hasattr(output_item, 'result')):
+                            
+                            result = output_item.result
+                            if isinstance(result, str) and result:
+                                yield {"type": "image", "data": result}
+                                return
 
     except Exception as e:
-        logger.error(f"Error in streaming image edit: {e}")
+        logger.error(f"Error in streaming image edit: {e}", exc_info=True)
         yield {
             "type": "error",
             "error": str(e)
@@ -238,7 +327,7 @@ async def edit_image_from_prompt(
         image_bytes: The image data to edit (PNG format).
         mask_bytes: Optional mask data (PNG format) indicating areas to edit.
         size: The desired size of the edited image.
-        quality: The quality setting (kept for compatibility, not used in edit API).
+        quality: The quality setting for the edited image.
         n: The number of edited images to generate.
 
     Returns:
@@ -247,30 +336,34 @@ async def edit_image_from_prompt(
     logger.info(
         f"Requesting image edit for prompt: '{prompt}' with size={size}, quality={quality}, n={n}")
     try:
-        # Build input content with base64 embedded images according to
-        # Responses API image editing spec.
-
-        content = [
+        # Convert image bytes to base64
+        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+        
+        # Prepare the input with correct Responses API format for image editing
+        message_content = [
             {"type": "input_text", "text": prompt},
-            {
-                "type": "input_image",
-                "image_url": "data:image/png;base64," + base64.b64encode(image_bytes).decode(),
-            },
+            {"type": "input_image", "image_url": f"data:image/png;base64,{image_b64}"}
         ]
+        
+        # Add mask if provided
         if mask_bytes:
-            content.append(
-                {
-                    "type": "input_image",
-                    "image_url": "data:image/png;base64," + base64.b64encode(mask_bytes).decode(),
-                }
-            )
+            mask_b64 = base64.b64encode(mask_bytes).decode("utf-8")
+            message_content.append({
+                "type": "input_image", 
+                "image_url": f"data:image/png;base64,{mask_b64}"
+            })
 
         args = dict(
             model="gpt-4o",
-            input=[{"type": "message", "role": "user", "content": content}],
+            input=[{
+                "type": "message",
+                "role": "user",
+                "content": message_content
+            }],
             tools=[{
                 "type": "image_generation",
                 "size": size,
+                "quality": quality,
             }],
         )
 

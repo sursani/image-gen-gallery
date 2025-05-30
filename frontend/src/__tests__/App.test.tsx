@@ -10,6 +10,7 @@ vi.mock('../components/GalleryView', () => ({
 vi.mock('../components/ImageGenerationForm', () => ({ default: () => <div data-testid="create">Create</div> }));
 vi.mock('../components/ImageGenerationFormStreaming', () => ({ default: () => <div data-testid="create">Create Streaming</div> }));
 vi.mock('../views/EditImageView', () => ({ default: () => <div data-testid="edit">Edit</div> }));
+vi.mock('../components/ImageEditFormStreaming', () => ({ default: () => <div data-testid="edit">Edit Streaming</div> }));
 
 describe('App top-level routing & navigation', () => {
   // jsdom starts at about:blank; push a fake starting path
@@ -22,17 +23,17 @@ describe('App top-level routing & navigation', () => {
     expect(screen.getByTestId('gallery')).toBeInTheDocument();
 
     // Click create button
-    fireEvent.click(screen.getByRole('button', { name: /create image/i }));
+    fireEvent.click(screen.getByRole('button', { name: /create/i }));
     expect(screen.getByTestId('create')).toBeInTheDocument();
     await waitFor(() => expect(window.location.pathname).toBe('/create'));
 
     // Click edit button
-    fireEvent.click(screen.getByRole('button', { name: /edit image/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
     expect(screen.getByTestId('edit')).toBeInTheDocument();
     await waitFor(() => expect(window.location.pathname).toBe('/edit'));
 
     // Click gallery button
-    fireEvent.click(screen.getByRole('button', { name: /view gallery/i }));
+    fireEvent.click(screen.getByRole('button', { name: /gallery/i }));
     expect(screen.getByTestId('gallery')).toBeInTheDocument();
     await waitFor(() => expect(window.location.pathname).toBe('/'));
   });
