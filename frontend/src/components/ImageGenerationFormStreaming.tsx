@@ -22,10 +22,8 @@ function ImageGenerationFormStreaming() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [partialImages, setPartialImages] = useState<string[]>([]);
   const [currentImageData, setCurrentImageData] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [currentStage, setCurrentStage] = useState<string>('');
   const [startTime, setStartTime] = useState<number | null>(null);
   const [estimatedTime, setEstimatedTime] = useState<string>('');
   
@@ -67,7 +65,6 @@ function ImageGenerationFormStreaming() {
         return { ...stage, active: false };
       }
     }));
-    setCurrentStage(stageId);
   };
 
   const completeAllStages = () => {
@@ -84,7 +81,6 @@ function ImageGenerationFormStreaming() {
       active: false,
       completed: false
     })));
-    setCurrentStage('');
     setStartTime(null);
     setEstimatedTime('');
   };
@@ -121,7 +117,7 @@ function ImageGenerationFormStreaming() {
     console.log('Stream event:', event); // Debug logging
     
     switch (event.type) {
-      case 'progress':
+      case 'progress': {
         const status = event.data?.status;
         if (status === 'started') {
           updateProgressStage('started');
@@ -131,12 +127,12 @@ function ImageGenerationFormStreaming() {
           updateProgressStage('generating');
         }
         break;
+      }
         
       case 'partial_image':
         // Handle partial images for progressive loading
         if (event.data) {
           const partialImageUrl = `data:image/png;base64,${event.data}`;
-          setPartialImages(prev => [...prev, partialImageUrl]);
           setCurrentImageData(partialImageUrl); // Show the latest partial
         }
         break;
@@ -148,7 +144,6 @@ function ImageGenerationFormStreaming() {
           setCurrentImageData(fullImageUrl);
           setIsLoading(false);
           completeAllStages();
-          setCurrentStage('complete');
         }
         break;
         
@@ -159,7 +154,6 @@ function ImageGenerationFormStreaming() {
           const fullImageUrl = `data:image/png;base64,${event.image_data}`;
           setCurrentImageData(fullImageUrl);
           setIsLoading(false);
-          setCurrentStage('complete');
         }
         break;
         
@@ -174,7 +168,6 @@ function ImageGenerationFormStreaming() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setApiError(null);
-    setPartialImages([]);
     setCurrentImageData(null);
     resetProgress();
     
@@ -192,8 +185,9 @@ function ImageGenerationFormStreaming() {
           handleStreamEvent
         );
         abortControllerRef.current = abort;
-      } catch (error: any) {
-        setApiError(error.message || 'An unknown error occurred generating the image.');
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred generating the image.';
+        setApiError(errorMessage);
         setIsLoading(false);
         resetProgress();
       }
@@ -463,7 +457,7 @@ function ImageGenerationFormStreaming() {
 
                   {/* Progress Steps */}
                   <div className="relative flex justify-between">
-                    {progressStages.map((stage, index) => (
+                    {progressStages.map((stage) => (
                       <div key={stage.id} className="flex flex-col items-center space-y-3">
                         {/* Step Circle */}
                         <div className={`

@@ -27,8 +27,8 @@ const TextArea: React.FC<TextAreaProps> = ({
     borderRadius: '12px',
     padding: '0.5rem 1rem',
     width: fullWidth ? '100%' : undefined,
-    resize: 'none' as 'none',
-    boxSizing: 'border-box' as 'border-box',
+    resize: 'none' as const,
+    boxSizing: 'border-box' as const,
     maxWidth: '100%'
   };
   

@@ -229,6 +229,7 @@ describe('Streaming API Tests', () => {
         imageFile,
         null,
         '1024x1024',
+        'auto',
         (event) => events.push(event)
       );
 
@@ -275,6 +276,7 @@ describe('Streaming API Tests', () => {
         imageFile,
         maskFile,
         '1024x1024',
+        'auto',
         (event) => events.push(event)
       );
 

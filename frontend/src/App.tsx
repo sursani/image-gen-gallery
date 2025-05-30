@@ -47,7 +47,7 @@ const styles = {
     margin: '0 auto',
     padding: '32px',
     display: 'flex',
-    flexDirection: 'column' as 'column',
+    flexDirection: 'column' as const,
     minHeight: '100vh'
   },
   header: {

@@ -106,7 +106,7 @@ export const editImageStream = async (
     }
 
     // Process the stream
-    (async () => {
+    await (async () => {
       let buffer = '';
       try {
         while (true) {
