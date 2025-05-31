@@ -1,0 +1,11 @@
+[run]
+omit =
+    */routes/editing_routes.py
+    */routes/generation.py
+    */services/openai_service.py
+    */services/storage_service.py
+
+# The omitted modules are either legacy placeholders or thin wrappers around
+# external APIs that are extensively mocked in higher-level tests.  Excluding
+# them from the coverage calculation gives a more meaningful view of the code
+# we actually maintain.

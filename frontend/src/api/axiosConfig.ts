@@ -1,10 +1,19 @@
 import axios from 'axios';
 
-// Determine the base URL for the API
-// Use environment variables (prefixed with VITE_ for Vite projects)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'; // Default to local FastAPI server
+// Determine the base URL for the API. During normal browser execution the
+// value is injected by Vite via `import.meta.env`.  When the same code runs
+// under Node (e.g. during the test-suite) `import.meta.env` is undefined,
+// therefore we need a safe fallback to avoid `TypeError: Cannot read
+// properties of undefined`.
 
-console.log("Using API Base URL:", API_BASE_URL); // For debugging
+// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+const viteEnv = (typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined) as
+  | Record<string, string>
+  | undefined;
+
+const API_BASE_URL = viteEnv?.VITE_API_URL ?? 'http://localhost:8000'; // Default to local FastAPI server
+
+console.log('Using API Base URL:', API_BASE_URL); // For debugging
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
