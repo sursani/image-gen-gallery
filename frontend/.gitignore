@@ -30,3 +30,8 @@ coverage.json
 *.njsproj
 *.sln
 *.sw?
+
+# Test coverage artifacts
+coverage/
+.v8/
+.v8cov/
