@@ -90,6 +90,7 @@ backend/.coverage
 backend/htmlcov/
 backend/pytest-of-*/
 backend/local_storage/
+backend/venv/
 
 # Frontend specific  
 frontend/coverage/
