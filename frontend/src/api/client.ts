@@ -1,6 +1,17 @@
-// Define the base URL for the backend API
-// Access environment variables using import.meta.env for Vite projects
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Define the base URL for the backend API.
+// When the code is executed within a Vite powered browser build the value
+// is provided via `import.meta.env`.  However, when the same module is
+// imported directly in a Node.js environment (for instance while running
+// unit-tests) `import.meta.env` is `undefined` and trying to read a property
+// from it would throw.  The defensive check below makes sure we fall back
+// to the default value when the module is evaluated outside of Vite.
+
+// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+const viteEnv = (typeof import.meta !== 'undefined' ? (import.meta as any).env : undefined) as
+  | Record<string, string>
+  | undefined;
+
+const API_BASE_URL = viteEnv?.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
 // Define the structure of the ImageMetadata based on the backend model
 // (Adjust based on actual fields returned by backend/app/models/image_metadata.py)
