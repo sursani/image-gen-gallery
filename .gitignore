@@ -62,4 +62,10 @@ dist/
 build/
 .coverage
 htmlcov/
-.pytest_cache/ 
+.pytest_cache/
+pytest-of-*/
+
+# Frontend test artifacts
+.v8/
+.v8cov/
+coverage/ 

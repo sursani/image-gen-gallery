@@ -22,3 +22,5 @@ local_storage/
 # Test artefacts
 .coverage
 htmlcov/
+.pytest_cache/
+pytest-of-*/
