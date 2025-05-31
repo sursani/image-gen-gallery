@@ -6,8 +6,8 @@ A full-stack application for generating, editing, and managing AI-generated imag
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)
 ![React](https://img.shields.io/badge/React-19-blue.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)
-![Coverage Backend](https://img.shields.io/badge/Backend%20Coverage-83%25-green.svg)
-![Coverage Frontend](https://img.shields.io/badge/Frontend%20Coverage-44%25-yellow.svg)
+![Coverage Backend](https://img.shields.io/badge/Backend%20Coverage-79%25-green.svg)
+![Coverage Frontend](https://img.shields.io/badge/Frontend%20Coverage-91%25-brightgreen.svg)
 
 ---
 
@@ -134,53 +134,90 @@ LOG_FORMAT=plain
 
 ## 🧪 Testing
 
+### Running All Tests
+
+To run both backend and frontend tests with coverage:
+
+```bash
+# From project root - run both test suites
+cd backend && python -m pytest --cov=app --cov-report=html --cov-report=term-missing -v
+cd ../frontend && npm test
+```
+
 ### Backend Testing
 
-The backend has comprehensive test coverage (83%) with async test support:
+The backend has comprehensive test coverage (79%) with async test support:
 
 ```bash
 cd backend
-# Run all tests
-pytest -q
 
-# Run with coverage report
-pytest --cov=app --cov-report=term-missing
+# Activate virtual environment first
+source venv/bin/activate  # or .venv/bin/activate on some systems
+
+# Run all tests with coverage
+python -m pytest --cov=app --cov-report=html --cov-report=term-missing -v
+
+# Run tests quietly (less verbose)
+python -m pytest -q
+
+# Run specific test file
+python -m pytest tests/test_generation_routes.py -v
 
 # Run specific test
-pytest tests/test_generation_routes.py::test_generate_image_ok
+python -m pytest tests/test_generation_routes.py::test_generate_image_stream_ok -v
 
-# Run tests in parallel
-pytest -n auto
+# Run tests in parallel (if pytest-xdist installed)
+python -m pytest -n auto
 ```
 
-**Test Coverage Areas:**
+**Coverage Report Locations:**
+- Terminal output: Shows missed lines
+- HTML report: `backend/htmlcov/index.html` (open in browser)
+
+**Test Coverage Areas (66 tests):**
 - ✅ All API endpoints (generation, editing, gallery, health)
-- ✅ Input validation and error handling
+- ✅ Input validation and error handling  
 - ✅ OpenAI service integration (mocked)
 - ✅ Database operations
 - ✅ Streaming responses
 - ✅ File upload/download
+- ✅ Security and CORS
 
 ### Frontend Testing
 
+The frontend has excellent test coverage (91.07%) exceeding all thresholds:
+
 ```bash
 cd frontend
-# Run all tests
+
+# Run all tests with coverage (coverage is enabled by default in vitest.config.ts)
 npm test
 
-# Run with coverage
-npm test -- --coverage
+# Run tests in watch mode for development
+npm run test:watch
 
-# Run in watch mode
-npm test -- --watch
+# Run tests with UI (if available)
+npm run test:ui
 ```
 
-**Test Coverage Areas:**
+**Coverage Thresholds (all exceeded ✅):**
+- Lines: 91.07% (target: 80%)
+- Functions: 87.5% (target: 80%)
+- Branches: 89.62% (target: 70%)
+- Statements: 91.07% (target: 80%)
+
+**Coverage Report Locations:**
+- Terminal output: Shows coverage summary
+- HTML report: `frontend/coverage/index.html` (open in browser)
+
+**Test Coverage Areas (193 tests across 28 files):**
 - ✅ Component rendering and interactions
 - ✅ API client and error handling
-- ✅ Form validation
-- ✅ Custom hooks
-- ⚠️ Streaming components (in progress)
+- ✅ Form validation and user input
+- ✅ Custom hooks and utilities
+- ✅ Streaming functionality (SSE)
+- ✅ Image upload and processing
+- ✅ Error boundaries and edge cases
 
 ---
 
