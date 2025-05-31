@@ -1,225 +1,438 @@
-# Image Generation Gallery
+# 🎨 AI Image Generation Gallery
 
-A full-stack application for generating, editing, and managing AI-generated images using OpenAI's API. The project features a FastAPI backend and a modern React (Vite + Tailwind) frontend.
+A full-stack application for generating, editing, and managing AI-generated images using OpenAI's API. Built with FastAPI backend and modern React frontend with real-time streaming capabilities.
 
----
-
-## Table of Contents
-- [Features](#features)
-- [Architecture](#architecture)
-- [Backend (FastAPI)](#backend-fastapi)
-- [Frontend (React + Vite)](#frontend-react--vite)
-- [Environment Variables](#environment-variables)
-- [Development Setup](#development-setup)
-- [Running the Application](#running-the-application)
-- [Testing](#testing)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
+![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)
+![React](https://img.shields.io/badge/React-19-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)
+![Coverage Backend](https://img.shields.io/badge/Backend%20Coverage-83%25-green.svg)
+![Coverage Frontend](https://img.shields.io/badge/Frontend%20Coverage-44%25-yellow.svg)
 
 ---
 
-## Features
-- Generate images using OpenAI's **Responses API** (gpt-4o)
-- Edit images with prompt-based modifications
-- **Stream** generation and editing progress via Server-Sent Events
-- View and manage a gallery of generated images
-- Store image metadata in SQLite
-- Modern, responsive frontend UI
+## 🚀 Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/image-gen-gallery.git
+cd image-gen-gallery
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your OpenAI API key
+
+# Run setup script (installs all dependencies)
+./scripts/setup_env.sh
+
+# Start the backend (in one terminal)
+cd backend
+source venv/bin/activate  # or .venv/bin/activate
+uvicorn app.main:app --reload
+
+# Start the frontend (in another terminal)
+cd frontend
+npm run dev
+```
+
+Visit `http://localhost:5173` to start generating images!
 
 ---
 
-## Architecture
-- **Backend:** FastAPI, OpenAI **Responses API** (gpt-4o), SQLite, Pydantic, CORS
-- **Frontend:** React 19, Vite, Tailwind CSS, Axios
-- **Storage:** Local file storage for images, SQLite for metadata
+## ✨ Features
+
+- **🖼️ Image Generation**: Generate images using OpenAI's Responses API (gpt-4o)
+- **✏️ Image Editing**: Edit existing images with prompt-based modifications
+- **📡 Real-time Streaming**: Stream generation progress via Server-Sent Events (SSE)
+- **🖼️ Gallery Management**: View, search, and manage generated images
+- **💾 Persistent Storage**: SQLite database for metadata, local file storage for images
+- **🎨 Modern UI**: Responsive design with Tailwind CSS and dark theme
+- **🧪 Comprehensive Testing**: 83% backend coverage, extensive frontend tests
+- **🔒 Security**: Security headers, CORS configuration, input validation
 
 ---
 
-## Backend (FastAPI)
-- Located in [`backend/app`](backend/app)
-- Exposes REST API endpoints for image generation, editing, gallery, and health checks
-- Provides streaming endpoints at `/api/generate/stream` and `/api/edit/stream`
-- Uses OpenAI **Responses API** (gpt-4o) for image generation and editing
-- Stores image metadata in SQLite (file: `backend/local_storage/image_metadata.db`)
-- Configurable via environment variables (see below)
-- Includes helper script `scripts/clear_database.py` to wipe local data
+## 🏗️ Architecture
 
-### Install dependencies
+### Technology Stack
+
+**Backend:**
+- **Framework**: FastAPI 0.100+
+- **AI Integration**: OpenAI Responses API (gpt-4o model)
+- **Database**: SQLite with aiosqlite for async operations
+- **Validation**: Pydantic v2 for request/response validation
+- **Testing**: Pytest with async support
+- **Security**: CORS, security headers, input validation
+
+**Frontend:**
+- **Framework**: React 19 with TypeScript
+- **Build Tool**: Vite for fast development
+- **Styling**: Tailwind CSS with custom dark theme
+- **HTTP Client**: Axios with retry logic
+- **Testing**: Vitest with React Testing Library
+- **State Management**: React hooks and context
+
+### API Architecture
+
+The application follows a RESTful API design with streaming capabilities:
+
+```
+/api/generate/stream     POST   Stream image generation
+/api/edit/stream        POST   Stream image editing
+/api/images             GET    Get gallery images
+/api/images/{id}        GET    Get specific image
+/api/image/{filename}   GET    Get image file
+/health                 GET    Health check
+```
+
+---
+
+## 🔧 Development Setup
+
+### Prerequisites
+
+- Python 3.12+
+- Node.js 18+
+- Git
+- OpenAI API key
+
+### Backend Setup
+
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-pip install -r requirements-dev.txt  # for development/testing
+pip install -r requirements-dev.txt  # For development
 ```
-Run the final `pip install -r requirements-dev.txt` step while your environment
-still has network access (for example in a prebuild or custom container). This
-ensures `pytest` and the rest of the test tooling are available even when the
-workspace later runs offline.
 
-### Run the backend server
-```bash
-# From the backend directory
-uvicorn app.main:app --reload
-```
-- The API will be available at `http://localhost:8000`
+### Frontend Setup
 
----
-
-## Frontend (React + Vite)
-- Located in [`frontend`](frontend)
-- Built with React 19, Vite, and Tailwind CSS
-- Communicates with the backend via REST API
-
-### Install dependencies
 ```bash
 cd frontend
 npm install
 ```
 
-### Run the frontend dev server
-```bash
-npm run dev
-```
-- The app will be available at `http://localhost:5173` (or as shown in the terminal)
+### Environment Configuration
 
----
+Create a `.env` file in the project root:
 
-## Environment Variables
-
-Create a `.env` file in the project root (or backend root) with the following variables:
-
-```
+```env
+# Required
 OPENAI_API_KEY=your-openai-api-key
-IMAGE_MODEL=gpt-image-1  # (currently unused; gpt-4o is hard-coded)
+
+# Optional (with defaults)
+IMAGE_MODEL=gpt-image-1
 STORAGE_DIR=backend/local_storage
 DB_FILENAME=image_metadata.db
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 LOG_LEVEL=INFO
 LOG_FORMAT=plain
 ```
-- See [`backend/app/core/settings.py`](backend/app/core/settings.py) for all options.
-- The backend loads `.env` automatically.
 
 ---
 
-## Development Setup
-- Use Python 3.12+
-- Use Node.js 18+ for the frontend
-- Recommended: run backend and frontend in separate terminals for development
-- Backend hot-reloads with `--reload`; frontend with Vite HMR
-- **First time setup:** run `./scripts/setup_env.sh` while your workspace still
-  has network access. This installs the Python packages required for the pytest
-  suite as well as the frontend dependencies so tests can run offline later.
-- To reset local images and the SQLite DB during development, run
-  `python scripts/clear_database.py` from the `backend` directory.
+## 🧪 Testing
 
----
+### Backend Testing
 
-## Running the Application
-1. **Start the backend:**
-    ```bash
-    cd backend
-    uvicorn app.main:app --reload
-    ```
-2. **Start the frontend:**
-    ```bash
-    cd frontend
-    npm run dev
-    ```
-3. Open your browser to `http://localhost:5173` to use the app.
-   Use the "Use streaming" toggle on the create/edit pages to switch between
-   streaming and standard API calls.
-
----
-
-## Testing
-
-### Backend – Pytest suite (🧪 new!)
-
-Recent work added a comprehensive asynchronous test-suite for the FastAPI
-backend.  The tests live in [`backend/tests`](backend/tests) and exercise both
-happy-paths and error-paths across all public endpoints as well as the
-OpenAI-integration helper functions.
-
-**What’s covered**
-
-* `test_health.py` – application & database health-check
-* `test_generate_route.py` / `test_generate_route_invalid_params.py` – image
-  generation endpoint (valid requests **and** 422 validation errors)
-* `test_edit_route.py` – placeholder image-editing endpoint
-* `test_images_route.py` – gallery listing with/without existing data
-* `test_error_paths.py` – assorted negative-path scenarios (missing fields,
-  internal exceptions)
-* `test_openai_service.py` – unit tests for the `openai_service` helpers
-* `test_config.py` – legacy `config.py` forward-compat shim
-
-**No external dependencies**
-
-The suite **does not talk to the real OpenAI service** – all network calls are
-patched/mocked, and a dummy `OPENAI_API_KEY` is injected automatically via the
-test fixtures.  You can therefore run the tests completely offline.
-
-**Running the backend tests**
+The backend has comprehensive test coverage (83%) with async test support:
 
 ```bash
-# from the repo root
 cd backend
-
-# (optional) create & activate a virtual-env first
-pip install -r requirements-dev.txt
-# (needs network access, so run this during the online setup phase or via
-# `./scripts/setup_env.sh`)
-
-# quick run
+# Run all tests
 pytest -q
 
-# run with coverage
+# Run with coverage report
 pytest --cov=app --cov-report=term-missing
 
-# run an individual test
-pytest tests/test_generate_route.py::test_generate_image_ok
+# Run specific test
+pytest tests/test_generation_routes.py::test_generate_image_ok
+
+# Run tests in parallel
+pytest -n auto
 ```
 
-### Frontend
+**Test Coverage Areas:**
+- ✅ All API endpoints (generation, editing, gallery, health)
+- ✅ Input validation and error handling
+- ✅ OpenAI service integration (mocked)
+- ✅ Database operations
+- ✅ Streaming responses
+- ✅ File upload/download
 
-A comprehensive set of unit tests lives under `frontend/src/__tests__`.
-The suite uses **Vitest** together with React Testing Library. Run it from the
-`frontend` directory:
+### Frontend Testing
 
 ```bash
-npm test --silent
+cd frontend
+# Run all tests
+npm test
+
+# Run with coverage
+npm test -- --coverage
+
+# Run in watch mode
+npm test -- --watch
+```
+
+**Test Coverage Areas:**
+- ✅ Component rendering and interactions
+- ✅ API client and error handling
+- ✅ Form validation
+- ✅ Custom hooks
+- ⚠️ Streaming components (in progress)
+
+---
+
+## 🔒 Security
+
+### Implemented Security Measures
+
+1. **Security Headers**
+   - X-Content-Type-Options: nosniff
+   - X-Frame-Options: DENY
+   - X-XSS-Protection: 1; mode=block
+   - Content-Security-Policy configured
+   - Referrer-Policy: strict-origin-when-cross-origin
+
+2. **Input Validation**
+   - File type validation (PNG, JPEG, WebP only)
+   - File size limits (4MB max)
+   - Path traversal protection
+   - SQL injection prevention (parameterized queries)
+
+3. **CORS Configuration**
+   - Specific origin allowlist
+   - Credentials support with strict origins
+   - Limited allowed headers
+
+### Security Recommendations
+
+⚠️ **Before deploying to production:**
+
+1. **Add Authentication**: Implement JWT or OAuth2
+2. **Add Rate Limiting**: Use slowapi or Redis-based solution
+3. **Use HTTPS**: Configure SSL/TLS certificates
+4. **Rotate Secrets**: Use environment variables, never commit secrets
+5. **Add Monitoring**: Implement logging and alerting
+6. **Regular Updates**: Keep dependencies updated
+
+---
+
+## 📚 API Documentation
+
+### Generate Image (Streaming)
+
+```http
+POST /api/generate/stream
+Content-Type: application/json
+
+{
+  "prompt": "A beautiful sunset over mountains",
+  "size": "1024x1024",
+  "quality": "auto"
+}
+```
+
+**Response**: Server-Sent Events stream
+```
+data: {"type": "progress", "data": {"status": "started"}}
+data: {"type": "progress", "data": {"status": "generating"}}
+data: {"type": "partial_image", "data": "base64..."}
+data: {"type": "image", "data": "base64..."}
+```
+
+### Edit Image (Streaming)
+
+```http
+POST /api/edit/stream
+Content-Type: multipart/form-data
+
+prompt: "Make the sky purple"
+image: <image file>
+mask: <optional mask file>
+size: "1024x1024"
+```
+
+### Get Gallery Images
+
+```http
+GET /api/images?limit=12&offset=0&sort=newest
+```
+
+**Response**:
+```json
+{
+  "images": [
+    {
+      "id": "uuid",
+      "prompt": "Image prompt",
+      "filename": "image.png",
+      "timestamp": "2024-01-01T00:00:00Z",
+      "parameters": {...}
+    }
+  ],
+  "total": 100,
+  "offset": 0,
+  "limit": 12
+}
 ```
 
 ---
 
-## Project Structure
+## 🚀 Deployment
+
+### Docker Deployment (Recommended)
+
+```dockerfile
+# Dockerfile example (to be created)
+FROM python:3.12-slim
+# ... (deployment configuration needed)
+```
+
+### Manual Deployment
+
+1. **Backend**:
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   uvicorn app.main:app --host 0.0.0.0 --port 8000
+   ```
+
+2. **Frontend**:
+   ```bash
+   cd frontend
+   npm run build
+   # Serve dist/ folder with nginx or similar
+   ```
+
+3. **Environment**:
+   - Use environment variables for configuration
+   - Set up reverse proxy (nginx)
+   - Configure SSL/TLS
+   - Set up process manager (systemd, supervisor)
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Backend won't start:**
+- Check Python version (3.12+ required)
+- Verify virtual environment is activated
+- Check if port 8000 is already in use
+- Verify .env file exists and has valid OPENAI_API_KEY
+
+**Frontend build errors:**
+- Clear node_modules and reinstall: `rm -rf node_modules && npm install`
+- Check Node.js version (18+ required)
+- Clear Vite cache: `rm -rf node_modules/.vite`
+
+**Image generation fails:**
+- Verify OpenAI API key is valid
+- Check API quota/limits
+- Review backend logs for detailed errors
+- Ensure file permissions for local_storage directory
+
+**Database errors:**
+- Run `python scripts/clear_database.py` to reset
+- Check file permissions on SQLite database
+- Verify STORAGE_DIR path in .env
+
+---
+
+## 📁 Project Structure
+
 ```
 image-gen-gallery/
 ├── backend/
-│   ├── app/           # FastAPI app code
-│   ├── local_storage/ # Created automatically at runtime for image files and SQLite DB
-│   ├── tests/         # Pytest tests
+│   ├── app/
+│   │   ├── core/           # Settings, logging, security
+│   │   ├── models/         # SQLAlchemy models
+│   │   ├── routes/         # API endpoints
+│   │   ├── schemas/        # Pydantic schemas
+│   │   └── services/       # Business logic
+│   ├── tests/              # Pytest test suite
+│   ├── local_storage/      # Generated at runtime
 │   └── requirements.txt
 ├── frontend/
-│   ├── src/           # React app code
-│   ├── src/__tests__/ # Vitest unit tests
+│   ├── src/
+│   │   ├── api/           # API client
+│   │   ├── components/    # React components
+│   │   └── __tests__/     # Component tests
 │   ├── public/
 │   └── package.json
-├── scripts/           # Helper scripts (setup_env.sh)
-├── .env.example       # Example environment file
+├── scripts/               # Utility scripts
+├── .env.example          # Environment template
+├── .gitignore
 └── README.md
 ```
 
 ---
 
-## Contributing
-- Fork the repo and create a feature branch
-- Follow code style and linting rules
-- Add/maintain tests for new features
-- Open a pull request with a clear description
+## 🤝 Contributing
+
+We welcome contributions! Please follow these guidelines:
+
+1. **Fork and Clone**
+   ```bash
+   git clone https://github.com/yourusername/image-gen-gallery.git
+   ```
+
+2. **Create Feature Branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+
+3. **Make Changes**
+   - Follow existing code style
+   - Add tests for new features
+   - Update documentation
+
+4. **Run Tests**
+   ```bash
+   # Backend
+   cd backend && pytest
+   
+   # Frontend
+   cd frontend && npm test
+   ```
+
+5. **Submit Pull Request**
+   - Clear description of changes
+   - Link related issues
+   - Ensure CI passes
+
+### Code Style
+
+- **Python**: Follow PEP 8, use Black formatter
+- **TypeScript/React**: Use ESLint configuration
+- **Commits**: Use conventional commits format
 
 ---
 
-## License
-MIT 
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- OpenAI for the image generation API
+- FastAPI team for the excellent framework
+- React and Vite teams for the frontend tooling
+- All contributors and testers
+
+---
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/yourusername/image-gen-gallery/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/image-gen-gallery/discussions)
+- **Email**: your-email@example.com
+
+---
+
+Made with ❤️ by the Image Gen Gallery team

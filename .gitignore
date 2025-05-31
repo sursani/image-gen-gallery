@@ -61,7 +61,44 @@ env/
 dist/
 build/
 .coverage
+*.coverage
+.coverage.*
 htmlcov/
 .pytest_cache/
+pytest-of-*/
+*.pytest_cache/
 
-global-pip-freeze.txt 
+global-pip-freeze.txt
+
+# Test outputs
+test-results/
+*.xml
+
+# Local development
+local_storage/
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+*.tmp
+*.temp
+~*
+
+# Backend specific
+backend/.coverage
+backend/htmlcov/
+backend/pytest-of-*/
+backend/local_storage/
+
+# Frontend specific  
+frontend/coverage/
+frontend/dist/
+frontend/.vitest-coverage/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Cursor AI
+.cursor/ 

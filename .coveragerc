@@ -1,6 +1,16 @@
 [run]
 omit =
-    */app/services/storage_service.py
-    */app/services/openai_service.py
-    */app/routes/editing_routes.py
-    */app/routes/image_routes.py
+    */tests/*
+    */venv/*
+    */setup.py
+    */__init__.py
+    */conftest.py
+    
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
