@@ -38,6 +38,11 @@ async def tmp_storage_dir(tmp_path, monkeypatch):
         tmp_path / "images"
     )  # type: ignore[attr-defined]
 
+    # Ensure the file-serving routes look at the same temporary directory
+    from backend.app.routes import image_routes
+
+    image_routes.IMAGE_STORAGE_PATH = openai_service.IMAGE_STORAGE_PATH  # type: ignore[attr-defined]
+
     # 3. Re-initialise DB at new location
     from backend.app.services import image_service
 

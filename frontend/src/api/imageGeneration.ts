@@ -1,4 +1,4 @@
-import apiClient from './axiosSetup'; // Import the configured client
+import apiClient from './axiosSetup.ts'; // Import the configured client
 
 // Base URL is now handled by apiClient
 // const API_BASE_URL = 'http://localhost:8000/api'; 

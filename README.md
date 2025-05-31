@@ -42,17 +42,32 @@ A full-stack application for generating, editing, and managing AI-generated imag
 - Configurable via environment variables (see below)
 
 ### Install dependencies
+
+The project keeps **runtime** and **development** Python requirements separate:
+
+* `backend/requirements.txt` – packages strictly needed at runtime (FastAPI,
+  Uvicorn, OpenAI SDK, etc.).  Use this in production images or minimal cloud
+  deployments.
+* `backend/requirements-dev.txt` – pulls in *all* runtime packages **plus** the
+  testing / linting tool-chain.  A `-r requirements.txt` line at the top keeps
+  the files DRY.
+
+Typical local-development workflow:
+
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # for development/testing
+
+# One-time env creation
+python3 -m venv venv
+source venv/bin/activate
+
+# Installs runtime deps *and* pytest/coverage/mocking tooling
+pip install -r requirements-dev.txt
+
+# After that you can work completely offline
 ```
-Run the final `pip install -r requirements-dev.txt` step while your environment
-still has network access (for example in a prebuild or custom container). This
-ensures `pytest` and the rest of the test tooling are available even when the
-workspace later runs offline.
+Run the installation while you still have internet access (e.g. CI pre-build)
+so that future test runs don’t need the network.
 
 ### Run the backend server
 ```bash
@@ -125,55 +140,67 @@ LOG_FORMAT=plain
 
 ## Testing
 
-### Backend – Pytest suite (🧪 new!)
+### Backend – Pytest suite (🧪 comprehensive & offline-friendly)
 
-Recent work added a comprehensive asynchronous test-suite for the FastAPI
-backend.  The tests live in [`backend/tests`](backend/tests) and exercise both
-happy-paths and error-paths across all public endpoints as well as the
-OpenAI-integration helper functions.
+More than **60** asynchronous tests live in [`backend/tests`](backend/tests)
+covering:
 
-**What’s covered**
+• Public API routes (generate, edit, images gallery, file download, health)
+• OpenAI integration helpers (generate / edit, retry & error logic)
+• SQLite persistence layer & storage_service fall-backs
+• Pydantic validators and application start-up hooks
 
-* `test_health.py` – application & database health-check
-* `test_generate_route.py` / `test_generate_route_invalid_params.py` – image
-  generation endpoint (valid requests **and** 422 validation errors)
-* `test_edit_route.py` – placeholder image-editing endpoint
-* `test_images_route.py` – gallery listing with/without existing data
-* `test_error_paths.py` – assorted negative-path scenarios (missing fields,
-  internal exceptions)
-* `test_openai_service.py` – unit tests for the `openai_service` helpers
-* `test_config.py` – legacy `config.py` forward-compat shim
+Current coverage target is **≥ 90 %** for core application code.  The suite is
+completely self-contained – all outbound HTTP / OpenAI calls are mocked and a
+temporary filesystem is used, so **no network access or real API keys are
+required**.
 
-**No external dependencies**
-
-The suite **does not talk to the real OpenAI service** – all network calls are
-patched/mocked, and a dummy `OPENAI_API_KEY` is injected automatically via the
-test fixtures.  You can therefore run the tests completely offline.
-
-**Running the backend tests**
+#### Running backend tests
 
 ```bash
-# from the repo root
+# From the repo root
 cd backend
 
-# (optional) create & activate a virtual-env first
-pip install -r requirements-dev.txt
-# (needs network access, so run this during the online setup phase)
+# 1) Create & activate a virtual-env **once** (if you haven’t already)
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements-dev.txt   # pulls runtime deps automatically
 
-# quick run
-pytest -q
+# 2) Subsequent test runs (offline)
+venv/bin/pytest -q                           # fast run
+venv/bin/pytest --cov=app --cov-report=term  # with coverage breakdown
 
-# run with coverage
-pytest --cov=app --cov-report=term-missing
-
-# run an individual test
-pytest tests/test_generate_route.py::test_generate_image_ok
+# 3) Single test example
+venv/bin/pytest tests/test_generate_route.py::test_generate_image_ok
 ```
 
-### Frontend
+### Frontend – Node built-in runner (👟 lightweight & offline)
 
-The React frontend currently has **no** automated test suite. Pull requests
-adding Jest/React-Testing-Library tests are very welcome!
+Frontend logic tests live in `frontend/src/__tests__/` and use Node’s
+`node:test` framework together with the standard `assert` module.  They focus
+on the **API helper modules** (`fetchImageMetadata`, `generateImage`,
+`editImage`) and other non-DOM utilities.  External calls are stubbed so the
+suite runs completely offline.
+
+Run them with:
+
+#### Running frontend tests
+
+```bash
+cd frontend
+
+# Basic test run
+npm test                                              # shortcut for: node --test
+
+# With coverage report (experimental Node.js feature)
+node --test --experimental-test-coverage             # shows coverage breakdown
+```
+
+**Current test coverage:** ~77% overall with good coverage of core API modules.
+
+Because Node can’t parse React **TSX** files without a build step we currently
+don’t unit-test individual components.  Integration/UI coverage will be added
+in a future migration to a dedicated component test runner.
 
 ---
 

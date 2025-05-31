@@ -1,3 +1,6 @@
+# Runtime dependencies (imported from requirements.txt)
+-r requirements.txt
+
 pytest
 pytest-asyncio
 pytest-cov

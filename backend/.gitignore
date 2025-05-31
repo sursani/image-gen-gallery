@@ -18,3 +18,7 @@ env/
 
 # Local Storage
 local_storage/ 
+
+# Test artefacts
+.coverage
+htmlcov/

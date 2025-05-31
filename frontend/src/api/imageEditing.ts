@@ -1,4 +1,4 @@
-import apiClient from './axiosSetup'; // Import the configured client
+import apiClient from './axiosSetup.ts'; // Import the configured client
 import axios from 'axios'; // Keep for isAxiosError check, or refactor error check
 
 // Base URL is now handled by apiClient
