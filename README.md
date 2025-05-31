@@ -427,12 +427,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/image-gen-gallery/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/image-gen-gallery/discussions)
-- **Email**: your-email@example.com
-
----
 
 Made with ❤️ by the Image Gen Gallery team
