@@ -1,93 +1,68 @@
-"""Integration-style tests for the legacy *storage_service* module.
+"""
+Test the image_service persistence layer.
 
-The aim is twofold:
-1. Exercise the full CRUD surface so that we achieve coverage across the
-   previously-untested 120+ lines.
-2. Verify that the helpers behave correctly (file saved, metadata persisted,
-   retrieval functions return the expected objects).
+This is an end-to-end storage test that:
 
-All filesystem interaction is redirected to the *tmp_storage_dir* fixture to
-avoid polluting the real repository state.
+• Initializes an SQLite database with table creation
+• Saves image metadata and retrieves it back 
+• Uses a temporary filesystem sandbox (no pollution)
 """
 
-from __future__ import annotations
-
-import base64
-from pathlib import Path
-
 import pytest
-
-
-# Minimal 1×1 pixel PNG used for the image payload
-PNG_BYTES = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8Xw8AAoMB"
-    "gPb+cc0AAAAASUVORK5CYII="
-)
+import pytest_asyncio
+from pathlib import Path
 
 
 @pytest.mark.asyncio
-async def test_storage_service_full_cycle(tmp_path):
+async def test_image_service_full_cycle(tmp_path):
     """End-to-end test: initialise DB, save an image, and read it back."""
 
     # ---------------------------------------------------------------------
-    # 1. Patch the module-level paths so *storage_service* uses the `tmp_path`
-    #    sandbox instead of the hard-coded *backend/local_storage* location.
+    # 1. Patch the module-level paths so image_service uses the `tmp_path`
+    #    sandbox instead of the hard-coded backend/local_storage location.
     # ---------------------------------------------------------------------
 
-    from backend.app.services import storage_service as ss
+    from backend.app.services import image_service
+    from backend.app.core.settings import settings
 
-    ss.STORAGE_DIR = tmp_path  # type: ignore[attr-defined]
-    ss.IMAGE_DIR = tmp_path / "images"  # type: ignore[attr-defined]
-    ss.DATABASE_PATH = tmp_path / "metadata.db"  # type: ignore[attr-defined]
+    # Patch settings to use temp directory
+    original_storage_dir = settings.storage_dir
+    settings.storage_dir = str(tmp_path)
 
-    # Ensure directories exist according to the patched paths
-    ss.IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        # Re-initialize the database in the temp location
+        await image_service.initialize_database()
 
-    # ------------------------------------------------------------------
-    # 2. Initialise the sqlite schema (should be idempotent).
-    # ------------------------------------------------------------------
+        # Test saving image metadata
+        from backend.app.models.image_metadata import ImageMetadata
+        import uuid
+        from datetime import datetime, timezone
 
-    ss.initialize_database()
+        test_metadata = ImageMetadata(
+            id=str(uuid.uuid4()),
+            prompt="Test image",
+            filename="test_image.png", 
+            timestamp=datetime.now(timezone.utc),  # Use timezone-aware datetime
+            parameters={"model": "test", "size": "1024x1024"}
+        )
 
-    # Check that the DB file is created
-    assert ss.DATABASE_PATH.is_file()
+        # Save metadata - this returns the ID string, not the object
+        saved_id = await image_service.save_image_metadata(test_metadata)
+        assert saved_id is not None
+        assert isinstance(saved_id, str)
+        assert saved_id == test_metadata.id
 
-    # ------------------------------------------------------------------
-    # 3. Save an image & its metadata
-    # ------------------------------------------------------------------
+        # Retrieve metadata
+        all_metadata = await image_service.get_all_image_metadata(limit=10)
+        assert len(all_metadata) == 1
+        assert all_metadata[0].prompt == "Test image"
+        assert all_metadata[0].filename == "test_image.png"
 
-    meta = await ss.save_image_and_metadata(
-        prompt="unit-test prompt",
-        parameters={"size": "1024x1024"},
-        image_data=PNG_BYTES,
-        original_filename="input.png",
-    )
+        # Test getting filename by ID (the available function)
+        filename = await image_service.get_image_filename_by_id(saved_id)
+        assert filename is not None
+        assert filename == "test_image.png"
 
-    # The helper returns None on failure – make sure we got an object back
-    assert meta is not None
-
-    # The file should have been written
-    saved_file = ss.IMAGE_DIR / meta.filename
-    assert saved_file.is_file()
-    assert saved_file.read_bytes() == PNG_BYTES
-
-    # ------------------------------------------------------------------
-    # 4. Retrieval helpers should return the row we just inserted
-    # ------------------------------------------------------------------
-
-    all_records = ss.get_all_metadata()
-    assert any(r.id == meta.id for r in all_records)
-
-    fetched = ss.get_metadata_by_id(meta.id)
-    assert fetched is not None and fetched.filename == meta.filename
-
-    # ------------------------------------------------------------------
-    # 5. Deleting the file and checking *get_metadata_by_id* still works
-    #    exercises the error-handling branches.
-    # ------------------------------------------------------------------
-
-    saved_file.unlink()  # remove file from disk
-
-    missing_file = ss.get_metadata_by_id(meta.id)
-    # Even if the physical file is gone, metadata should still be retrievable
-    assert missing_file is not None
+    finally:
+        # Restore original settings
+        settings.storage_dir = original_storage_dir

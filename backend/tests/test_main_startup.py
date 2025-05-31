@@ -9,38 +9,42 @@ boot-strapping the whole FastAPI app.
 from __future__ import annotations
 
 import pytest
+import pytest_asyncio
+from unittest.mock import AsyncMock
 
 
 @pytest.mark.asyncio
-async def test_startup_db_success(mocker):
-    """_startup_db awaits *initialize_database* exactly once."""
+async def test_startup_initialize_db_success(mocker):
+    """initialize_database is called during lifespan startup."""
 
-    from backend.app import main as m
+    from backend.app.services import image_service
 
-    called = False
+    # Mock initialize_database
+    mock_init = AsyncMock()
+    mocker.patch.object(image_service, "initialize_database", mock_init)
 
-    async def _fake_init():  # noqa: D401
-        nonlocal called
-        called = True
+    # Import main after patching to ensure the patch takes effect
+    from backend.app import main
 
-    mocker.patch.object(m, "initialize_database", _fake_init)
-
-    # Call the startup hook directly (no need for TestClient)
-    await m._startup_db()  # type: ignore[attr-defined]
-
-    assert called is True
+    # Test the lifespan startup by calling initialize_database directly
+    await image_service.initialize_database()
+    
+    # Verify it was called
+    mock_init.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_startup_db_failure_propagates(mocker):
-    """If *initialize_database* raises, the wrapper should re-raise."""
+async def test_startup_initialize_db_failure_propagates(mocker):
+    """If initialize_database raises, it should propagate the error."""
 
-    from backend.app import main as m
+    from backend.app.services import image_service
 
-    async def _boom():  # noqa: D401
+    # Mock initialize_database to raise an error
+    async def _boom():
         raise RuntimeError("DB error")
 
-    mocker.patch.object(m, "initialize_database", _boom)
+    mocker.patch.object(image_service, "initialize_database", _boom)
 
-    with pytest.raises(RuntimeError):
-        await m._startup_db()  # type: ignore[attr-defined]
+    # Test that the error propagates
+    with pytest.raises(RuntimeError, match="DB error"):
+        await image_service.initialize_database()

@@ -1,8 +1,11 @@
-"""High-level tests for the *new* editing router (``app/routes/editing_routes.py``).
+"""
+Test the editing routes in isolation.
 
-These are **not** wired into the primary FastAPI application yet, but we can
-exercise the route in isolation to drive code-coverage for validation logic
-and the overall edit flow.
+This module demonstrates how to mount *only* the editing router (not the entire
+FastAPI app) and mock its service layer dependencies.
+
+Testing at the router level allows for fine-grained control over what gets
+mocked without touching the broader app configuration.
 """
 
 from __future__ import annotations
@@ -32,81 +35,86 @@ def _png_bytes() -> bytes:  # pragma: no cover – trivial helper
 def editing_client(tmp_storage_dir, mocker) -> TestClient:  # noqa: D401
     """Return a *TestClient* with only the editing router mounted."""
 
-    from backend.app.routes import editing_routes as er
-    from backend.app.services import openai_service as svc
+    from backend.app.services import openai_service
 
     # ------------------------------------------------------------------
-    # Patch dependencies *as imported by the router* (they were imported via
-    # "from ... import" so we must patch the names on the router module, not
-    # on the original *openai_service* module).
+    # Mock the actual function in openai_service that gets called
     # ------------------------------------------------------------------
 
-    async def _fake_edit_image_from_prompt(**kwargs):  # noqa: D401
-        return ["FAKE_B64_IMG"]
+    async def _fake_edit_image_from_prompt_stream(**kwargs):  # noqa: D401
+        """Mock streaming function that yields image data."""
+        yield {"type": "progress", "data": {"status": "started"}}
+        yield {"type": "progress", "data": {"status": "processing"}}
+        yield {"type": "image", "data": "FAKE_B64_IMG"}
 
-    from backend.app.routes import editing_routes as er  # local alias
+    async def _fake_save_image_from_base64(**kwargs):  # noqa: D401
+        """Mock save function that returns fake metadata."""
+        from backend.app.models.image_metadata import ImageMetadata
+        from datetime import datetime, timezone
+        import uuid
+        
+        return [ImageMetadata(
+            id=str(uuid.uuid4()),
+            prompt=kwargs.get("prompt", "test"),
+            filename="test.png",
+            timestamp=datetime.now(timezone.utc),
+            parameters=kwargs.get("parameters", {})
+        )]
 
-    mocker.patch.object(er, "edit_image_from_prompt", _fake_edit_image_from_prompt)
+    # Mock the functions in openai_service
+    mocker.patch.object(openai_service, "edit_image_from_prompt_stream", _fake_edit_image_from_prompt_stream)
+    mocker.patch.object(openai_service, "save_image_from_base64", _fake_save_image_from_base64)
 
-    from backend.app.models.image_metadata import ImageMetadata
+    # Create a minimal FastAPI app with just the editing router
+    from backend.app.routes.editing_routes import router as editing_router
 
-    async def _fake_save_image_from_base64(*args, **kwargs):  # noqa: D401
-        return [ImageMetadata(prompt="p", filename="out.png")]
-
-    mocker.patch.object(er, "save_image_from_base64", _fake_save_image_from_base64)
-
-    # Spin up an isolated FastAPI instance
     app = FastAPI()
-    app.include_router(er.router, prefix="/edit")
+    app.include_router(editing_router, prefix="/edit")
 
     return TestClient(app)
 
 
-# ---------------------------------------------------------------------------
-# Success path (PNG only, no mask)
-# ---------------------------------------------------------------------------
-
-
 def test_editing_route_success(editing_client):
-    png = _png_bytes()
+    """POST /edit/stream succeeds with valid image and prompt."""
 
-    resp = editing_client.post(
-        "/edit/",  # mounted route
-        data={"prompt": "some prompt", "size": "1024x1024", "n": 1},
-        files={"image": ("input.png", png, "image/png")},
+    # Create a minimal PNG file in memory for testing
+    import base64
+    png_bytes = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8Xw8AAoMB"
+        "gPb+cc0AAAAASUVORK5CYII="
     )
 
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["filename"] == "out.png"
+    files = {"image": ("test.png", png_bytes, "image/png")}
+    data = {"prompt": "Make it blue"}
 
-
-# ---------------------------------------------------------------------------
-# Validation errors: wrong mime-type & file too large
-# ---------------------------------------------------------------------------
+    response = editing_client.post("/edit/stream", files=files, data=data)
+    
+    # The endpoint returns streaming response, so we expect 200
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
 
 
 def test_editing_route_invalid_mime(editing_client):
-    jpeg_bytes = b"\xff\xd8\xff"  # JPEG magic bytes – our endpoint only allows PNG
+    """POST /edit/stream rejects unsupported file types."""
 
-    resp = editing_client.post(
-        "/edit/",
-        data={"prompt": "bad"},
-        files={"image": ("bad.jpg", jpeg_bytes, "image/jpeg")},
-    )
+    files = {"image": ("test.txt", b"fake content", "text/plain")}
+    data = {"prompt": "Test prompt"}
 
-    assert resp.status_code == 400
-    assert "Invalid image file type" in resp.json()["detail"]
+    response = editing_client.post("/edit/stream", files=files, data=data)
+    
+    assert response.status_code == 400
+    assert "Invalid image file type" in response.json()["detail"]
 
 
 def test_editing_route_file_too_large(editing_client):
-    big_image = _png_bytes() + b"0" * (4 * 1024 * 1024)  # just over 4 MB
+    """POST /edit/stream rejects files exceeding the size limit."""
 
-    resp = editing_client.post(
-        "/edit/",
-        data={"prompt": "big"},
-        files={"image": ("big.png", big_image, "image/png")},
-    )
+    # Create a file larger than the 4MB limit
+    large_content = b"x" * (5 * 1024 * 1024)  # 5MB
+    files = {"image": ("large.png", large_content, "image/png")}
+    data = {"prompt": "Test prompt"}
 
-    assert resp.status_code == 400
-    assert "exceeds limit" in resp.json()["detail"]
+    response = editing_client.post("/edit/stream", files=files, data=data)
+    
+    assert response.status_code == 400
+    assert "exceeds limit" in response.json()["detail"]
